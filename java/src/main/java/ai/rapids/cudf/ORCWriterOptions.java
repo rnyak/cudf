@@ -20,17 +20,6 @@ package ai.rapids.cudf;
 
 public class ORCWriterOptions {
 
-  enum CompressionType {
-    NONE(0),
-    SNAPPY(1);
-
-    public final int nativeId;
-
-    CompressionType(int nativeId) {
-      this.nativeId = nativeId;
-    }
-  }
-
   public static ORCWriterOptions DEFAULT = new ORCWriterOptions(new Builder());
 
   private final CompressionType compressionType;

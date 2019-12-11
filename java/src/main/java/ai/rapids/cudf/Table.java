@@ -209,6 +209,20 @@ public final class Table implements AutoCloseable {
                                            long address, long length, int timeUnit) throws CudfException;
 
   /**
+   * Write Parquet formatted data.
+   * @param table           handle to the native table
+   * @param columnNames     names that correspond to the table columns
+   * @param metadataKeys    Metadata key names to place in the Parquet file
+   * @param metadataValues  Metadata values corresponding to metadataKeys
+   * @param compression     native compression codec ID
+   * @param statsFreq       native statistics frequency ID
+   * @param filename        local output path
+   */
+  private static native void writeParquet(long table, String[] columnNames,
+      String[] metadataKeys, String[] metadataValues,
+      int compression, int statsFreq, String filename) throws CudfException;
+
+  /**
    * Read in ORC formatted data.
    * @param filterColumnNames name of the columns to read, or an empty array if we want to read
    *                          all of them
@@ -787,6 +801,41 @@ public final class Table implements AutoCloseable {
           null, buffer.getAddress() + offset, len, opts.usingNumPyTypes(),
           opts.timeUnit().nativeId));
     }
+  }
+
+  /**
+   * Writes this table to a Parquet file on the host
+   *
+   * @param outputFile file to write the table to
+   */
+  public void writeParquet(File outputFile) {
+    writeParquet(ParquetWriterOptions.DEFAULT, outputFile);
+  }
+
+  /**
+   * Writes this table to a Parquet file on the host
+   *
+   * @param options parameters for the writer
+   * @param outputFile file to write the table to
+   */
+  public void writeParquet(ParquetWriterOptions options, File outputFile) {
+    List<String> columnNames = options.getColumnNames();
+    Map<String, String> metadata = options.getMetadata();
+    int metadataSize = metadata.size();
+    String[] metadataKeys = new String[metadataSize];
+    String[] metadataValues = new String[metadataSize];
+    int i = 0;
+    for (Map.Entry<String, String> entry : metadata.entrySet()) {
+      metadataKeys[i] = entry.getKey();
+      metadataValues[i++] = entry.getValue();
+    }
+    writeParquet(this.nativeHandle,
+        columnNames.toArray(new String[columnNames.size()]),
+        metadataKeys,
+        metadataValues,
+        options.getCompressionType().nativeId,
+        options.getStatisticsFrequency().nativeId,
+        outputFile.getAbsolutePath());
   }
 
   /**

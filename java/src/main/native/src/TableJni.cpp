@@ -282,6 +282,40 @@ JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_readParquet(
   CATCH_STD(env, NULL);
 }
 
+JNIEXPORT void JNICALL Java_ai_rapids_cudf_Table_writeParquet(JNIEnv* env, jclass,
+    jlong j_table,
+    jobjectArray j_col_names,
+    jobjectArray j_metadata_keys,
+    jobjectArray j_metadata_values,
+    jint j_compression,
+    jint j_stats_freq,
+    jstring j_output_path) {
+  JNI_NULL_CHECK(env, j_table, "null table", );
+  JNI_NULL_CHECK(env, j_col_names, "null columns", );
+  JNI_NULL_CHECK(env, j_metadata_keys, "null metadata keys", );
+  JNI_NULL_CHECK(env, j_metadata_values, "null metadata values", );
+  try {
+    using namespace cudf::experimental::io;
+    cudf::jni::native_jstringArray col_names(env, j_col_names);
+    cudf::jni::native_jstringArray meta_keys(env, j_metadata_keys);
+    cudf::jni::native_jstringArray meta_values(env, j_metadata_values);
+    cudf::jni::native_jstring output_path(env, j_output_path);
+
+    table_metadata metadata{col_names.as_cpp_vector()};
+    for (size_t i = 0; i < meta_keys.size(); ++i) {
+      metadata.user_data[meta_keys[i].get()] = meta_values[i].get();
+    }
+
+    sink_info sink{output_path.get()};
+    compression_type compression{static_cast<compression_type>(j_compression)};
+    statistics_freq stats{static_cast<statistics_freq>(j_stats_freq)};
+
+    cudf::table_view *tview = reinterpret_cast<cudf::table_view *>(j_table);
+    write_parquet_args args(sink, *tview, &metadata, compression, stats);
+    write_parquet(args);
+  } CATCH_STD(env, )
+}
+
 JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_readORC(
     JNIEnv *env, jclass j_class_object, jobjectArray filter_col_names, jstring inputfilepath,
     jlong buffer, jlong buffer_length, jboolean usingNumPyTypes, jint unit) {

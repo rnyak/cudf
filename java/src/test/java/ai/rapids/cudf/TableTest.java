@@ -1838,6 +1838,83 @@ public class TableTest extends CudfTestBase {
   }
 
   @Test
+  void testParquetWriteToFileNoNames() throws IOException {
+    File tempFile = File.createTempFile("test-nonames", ".parquet");
+    try (Table table0 = getExpectedFileTable()) {
+      table0.writeParquet(tempFile.getAbsoluteFile());
+      try (Table table1 = Table.readParquet(tempFile.getAbsoluteFile())) {
+        assertTablesAreEqual(table0, table1);
+      }
+    } finally {
+      tempFile.delete();
+    }
+  }
+
+  @Test
+  void testParquetWriteToFileWithNames() throws IOException {
+    File tempFile = File.createTempFile("test-names", ".parquet");
+    try (Table table0 = getExpectedFileTable()) {
+      ParquetWriterOptions options = ParquetWriterOptions.builder()
+          .withColumnName("first")
+          .withColumnName("second")
+          .withColumnName("third")
+          .withColumnName("fourth")
+          .withColumnName("fifth")
+          .withColumnName("sixth")
+          .withCompressionType(CompressionType.NONE)
+          .withStatisticsFrequency(ParquetWriterOptions.StatisticsFrequency.NONE)
+          .build();
+      table0.writeParquet(options, tempFile.getAbsoluteFile());
+      try (Table table2 = Table.readParquet(tempFile.getAbsoluteFile())) {
+        assertTablesAreEqual(table0, table2);
+      }
+    } finally {
+      tempFile.delete();
+    }
+  }
+
+  @Test
+  void testParquetWriteToFileWithNamesAndMetadata() throws IOException {
+    File tempFile = File.createTempFile("test-names-metadata", ".parquet");
+    try (Table table0 = getExpectedFileTable()) {
+      ParquetWriterOptions options = ParquetWriterOptions.builder()
+          .withColumnName("first")
+          .withColumnName("second")
+          .withColumnName("third")
+          .withColumnName("fourth")
+          .withColumnName("fifth")
+          .withColumnName("sixth")
+          .withMetadata("somekey", "somevalue")
+          .withCompressionType(CompressionType.NONE)
+          .withStatisticsFrequency(ParquetWriterOptions.StatisticsFrequency.NONE)
+          .build();
+      table0.writeParquet(options, tempFile.getAbsoluteFile());
+      try (Table table2 = Table.readParquet(tempFile.getAbsoluteFile())) {
+        assertTablesAreEqual(table0, table2);
+      }
+    } finally {
+      tempFile.delete();
+    }
+  }
+
+  @Test
+  void testParquetWriteToFileUncompressedNoStats() throws IOException {
+    File tempFile = File.createTempFile("test-uncompressed", ".parquet");
+    try (Table table0 = getExpectedFileTable()) {
+      ParquetWriterOptions options = ParquetWriterOptions.builder()
+          .withCompressionType(CompressionType.NONE)
+          .withStatisticsFrequency(ParquetWriterOptions.StatisticsFrequency.NONE)
+          .build();
+      table0.writeParquet(options, tempFile.getAbsoluteFile());
+      try (Table table2 = Table.readParquet(tempFile.getAbsoluteFile())) {
+        assertTablesAreEqual(table0, table2);
+      }
+    } finally {
+      tempFile.delete();
+    }
+  }
+
+  @Test
   void testORCWriteToFile() throws IOException {
     File tempFile = File.createTempFile("test", ".orc");
     try (Table table0 = getExpectedFileTable()) {
@@ -1854,7 +1931,7 @@ public class TableTest extends CudfTestBase {
   void testORCWriteToFileUncompressed() throws IOException {
     File tempFileUncompressed = File.createTempFile("test-uncompressed", ".orc");
     try (Table table0 = getExpectedFileTable()) {
-      table0.writeORC(ORCWriterOptions.builder().withCompression(ORCWriterOptions.CompressionType.NONE).build(), tempFileUncompressed.getAbsoluteFile());
+      table0.writeORC(ORCWriterOptions.builder().withCompression(CompressionType.NONE).build(), tempFileUncompressed.getAbsoluteFile());
       try (Table table2 = Table.readORC(tempFileUncompressed.getAbsoluteFile())) {
         assertTablesAreEqual(table0, table2);
       }
