@@ -229,8 +229,8 @@ JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_readCSV(
     read_arg.doublequote = true;
     read_arg.comment = comment;
 
-    std::unique_ptr<cudf::experimental::table> result = cudf::experimental::io::read_csv(read_arg);
-    return cudf::jni::convert_table_for_return(env, result);
+    cudf::experimental::io::table_with_metadata result = cudf::experimental::io::read_csv(read_arg);
+    return cudf::jni::convert_table_for_return(env, result.tbl);
   }
   CATCH_STD(env, NULL);
 }
@@ -276,8 +276,8 @@ JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_readParquet(
     read_arg.strings_to_categorical = false;
     read_arg.timestamp_type = cudf::data_type(static_cast<cudf::type_id>(unit));
 
-    std::unique_ptr<cudf::experimental::table> result = cudf::experimental::io::read_parquet(read_arg);
-    return cudf::jni::convert_table_for_return(env, result);
+    cudf::experimental::io::table_with_metadata result = cudf::experimental::io::read_parquet(read_arg);
+    return cudf::jni::convert_table_for_return(env, result.tbl);
   }
   CATCH_STD(env, NULL);
 }
@@ -322,8 +322,8 @@ JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_readORC(
     read_arg.use_np_dtypes = static_cast<bool>(usingNumPyTypes);
     read_arg.timestamp_type = cudf::data_type(static_cast<cudf::type_id>(unit));
 
-    std::unique_ptr<cudf::experimental::table> result = cudf::experimental::io::read_orc(read_arg);
-    return cudf::jni::convert_table_for_return(env, result);
+    cudf::experimental::io::table_with_metadata result = cudf::experimental::io::read_orc(read_arg);
+    return cudf::jni::convert_table_for_return(env, result.tbl);
   }
   CATCH_STD(env, NULL);
 }
