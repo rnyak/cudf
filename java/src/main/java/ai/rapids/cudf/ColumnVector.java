@@ -249,7 +249,7 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
         ", hostData=" + offHeap.getHostData() +
         ", deviceData=" + offHeap.getDeviceData() +
         ", nullCount=" + nullCount +
-        ", cudfColumn=" + offHeap.cudfColumnHandle.nativeHandle +
+        ", cudfColumn=" + offHeap.cudfColumnHandle +
         '}';
   }
 

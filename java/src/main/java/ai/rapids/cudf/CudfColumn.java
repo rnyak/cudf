@@ -124,4 +124,8 @@ class CudfColumn {
 
   public static native long[] getStringDataAndOffsets(long nativeHandle);
 
+  @Override
+  public String toString() {
+    return String.valueOf(nativeHandle);
+  }
 }
