@@ -350,25 +350,17 @@ Java_ai_rapids_cudf_ColumnVector_getStringDataAndOffsetsBack(JNIEnv *env, jobjec
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_concatenate(JNIEnv *env, jclass clazz,
                                                                      jlongArray column_handles) {
   JNI_NULL_CHECK(env, column_handles, "input columns are null", 0);
+  using cudf::column;
+  using cudf::column_view;
   try {
-    cudf::jni::native_jpointerArray<gdf_column> columns(env, column_handles);
-    size_t total_size = 0;
-    bool need_validity = false;
+    cudf::jni::native_jpointerArray<column> columns(env, column_handles);
+    std::vector<column_view> columns_vector(columns.size());
     for (int i = 0; i < columns.size(); ++i) {
-      total_size += columns[i]->size;
-      // Should be checking for null_count != 0 but libcudf is checking valid != nullptr
-      need_validity |= columns[i]->valid != nullptr;
+      JNI_NULL_CHECK(env, columns[i], "column to concat is null", 0);
+      columns_vector[i] = columns[i]->view();
     }
-    if (total_size != static_cast<cudf::size_type>(total_size)) {
-      cudf::jni::throw_java_exception(env, "java/lang/IllegalArgumentException",
-                                      "resulting column is too large");
-    }
-    cudf::jni::gdf_column_wrapper outcol(total_size, columns[0]->dtype, need_validity, true);
-    JNI_GDF_TRY(env, 0, gdf_column_concat(outcol.get(), columns.data(), columns.size()));
-    if (outcol->dtype == GDF_TIMESTAMP) {
-      outcol->dtype_info.time_unit = columns[0]->dtype_info.time_unit;
-    }
-    return reinterpret_cast<jlong>(outcol.release());
+    std::unique_ptr<column> result = cudf::concatenate(columns_vector);
+    return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);
 }

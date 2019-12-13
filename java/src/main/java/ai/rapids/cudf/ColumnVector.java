@@ -1894,7 +1894,7 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
 
 //  private static native int getDeviceMemoryStringSize(long cudfColumnHandle) throws CudfException;
 
-//  private static native long concatenate(long[] columnHandles) throws CudfException;
+  private static native long concatenate(long[] columnHandles) throws CudfException;
 
   private static native long fromScalar(long scalarHandle, int rowCount) throws CudfException;
 
@@ -2429,8 +2429,6 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    * Note that all columns must have the same type.
    */
   public static ColumnVector concatenate(ColumnVector... columns) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
     if (columns.length < 2) {
       throw new IllegalArgumentException("Concatenate requires 2 or more columns");
     }
@@ -2445,7 +2443,6 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
       }
       return new ColumnVector(concatenate(columnHandles));
     }
-*/
   }
 
   /**
