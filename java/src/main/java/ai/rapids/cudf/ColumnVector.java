@@ -1883,11 +1883,6 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
 
 //  private static native int getTypeIdInternal(long cudfColumnHandle) throws CudfException;
 
-  private static TimeUnit getTimeUnit(long cudfColumnHandle) throws CudfException {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-//    return TimeUnit.fromNative(getTimeUnitInternal(cudfColumnHandle));
-  }
-
 //  private static native int getTimeUnitInternal(long cudfColumnHandle) throws CudfException;
 
 //  private static native int getNullCount(long cudfColumnHandle) throws CudfException;
@@ -2088,20 +2083,7 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    * @return the builder to use.
    */
   public static Builder builder(DType type, int rows) {
-    return new Builder(type, TimeUnit.NONE, rows, 0);
-  }
-
-  /**
-   * Create a new Builder to hold the specified number of rows.  Be sure to close the builder when
-   * done with it. Please try to use {@see #build(int, Consumer)} instead to avoid needing to
-   * close the builder.
-   * @param type the type of vector to build.
-   * @param rows the number of rows this builder can hold
-   * @return the builder to use.
-   */
-  public static Builder builder(DType type, TimeUnit tsTimeUnit, int rows) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-//    return new Builder(type, tsTimeUnit, rows, 0);
+    return new Builder(type, rows, 0);
   }
 
   /**
@@ -2115,32 +2097,17 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    */
   public static Builder builder(DType type, int rows, long stringBufferSize) {
     assert type == DType.STRING;
-    return new ColumnVector.Builder(type, TimeUnit.NONE, rows, stringBufferSize);
-  }
-
-  /**
-   * Create a new vector.
-   * @param type the type of vector to build.
-   * @param rows maximum number of rows that the vector can hold.
-   * @param init what will initialize the vector.
-   * @return the created vector.
-   */
-  public static ColumnVector build(DType type, int rows, Consumer<Builder> init) {
-    return build(type, TimeUnit.NONE, rows, init);
+    return new ColumnVector.Builder(type, rows, stringBufferSize);
   }
 
   /**
    * Create a new vector.
    * @param type       the type of vector to build.
-   * @param tsTimeUnit the unit of time, really only applicable for TIMESTAMP.
    * @param rows       maximum number of rows that the vector can hold.
    * @param init       what will initialize the vector.
    * @return the created vector.
    */
-  public static ColumnVector build(DType type, TimeUnit tsTimeUnit, int rows,
-                                   Consumer<Builder> init) {
-    // TODO: remove time unit as a parameter, which will make the following redundant line #2438
-    //  ai.rapids.cudf.ColumnVector.build(ai.rapids.cudf.TypeId, int, java.util.function.Consumer<ai.rapids.cudf.ColumnVector.Builder>)
+  public static ColumnVector build(DType type, int rows, Consumer<Builder> init) {
     try (ColumnVector.Builder builder = builder(type, rows)) {
       init.accept(builder);
       return builder.build();
@@ -2156,33 +2123,17 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
 
   /**
    * Create a new vector without sending data to the device.
-   * @param type the type of vector to build.
-   * @param rows maximum number of rows that the vector can hold.
-   * @param init what will initialize the vector.
-   * @return the created vector.
-   */
-  public static ColumnVector buildOnHost(DType type, int rows, Consumer<Builder> init) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-//    return buildOnHost(type, TimeUnit.NONE, rows, init);
-  }
-
-  /**
-   * Create a new vector without sending data to the device.
    * @param type       the type of vector to build.
-   * @param tsTimeUnit the unit of time, really only applicable for TIMESTAMP.
    * @param rows       maximum number of rows that the vector can hold.
    * @param init       what will initialize the vector.
    * @return the created vector.
    */
-  public static ColumnVector buildOnHost(DType type, TimeUnit tsTimeUnit, int rows,
+  public static ColumnVector buildOnHost(DType type, int rows,
                                          Consumer<Builder> init) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
-    try (Builder builder = builder(type, tsTimeUnit, rows)) {
+    try (Builder builder = builder(type, rows)) {
       init.accept(builder);
       return builder.buildOnHost();
     }
-*/
   }
 
   /**
@@ -2494,7 +2445,6 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
   public static final class Builder implements AutoCloseable {
     private final long rows;
     private final DType type;
-    private final TimeUnit tsTimeUnit = TimeUnit.NONE;
     private HostMemoryBuffer data;
     private HostMemoryBuffer valid;
     private HostMemoryBuffer offsets;
@@ -2507,13 +2457,11 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
     /**
      * Create a builder with a buffer of size rows
      * @param type       datatype
-     * @param tsTimeUnit for TIMESTAMP the unit of time it is storing.
      * @param rows       number of rows to allocate.
      * @param stringBufferSize the size of the string data buffer if we are
      *                         working with Strings.  It is ignored otherwise.
      */
-    Builder(DType type, TimeUnit tsTimeUnit, long rows, long stringBufferSize) {
-      // TODO: remove TimeUnit as a parameter, ignoring for now
+    Builder(DType type, long rows, long stringBufferSize) {
       this.type = type;
       this.rows = rows;
       if (type == DType.STRING) {
@@ -2535,16 +2483,14 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
     /**
      * Create a builder with a buffer of size rows (for testing ONLY).
      * @param type       datatype
-     * @param tsTimeUnit for TIMESTAMP the unit of time it is storing.
      * @param rows       number of rows to allocate.
      * @param testData   a buffer to hold the data (should be large enough to hold rows entries).
      * @param testValid  a buffer to hold the validity vector (should be large enough to hold
      *                   rows entries or is null).
      * @param testOffsets a buffer to hold the offsets for strings and string categories.
      */
-    Builder(DType type, TimeUnit tsTimeUnit, long rows, HostMemoryBuffer testData,
+    Builder(DType type, long rows, HostMemoryBuffer testData,
             HostMemoryBuffer testValid, HostMemoryBuffer testOffsets) {
-      // TODO: remove TimeUnit as a parameter, ignoring for now
       this.type = type;
       this.rows = rows;
       this.data = testData;
