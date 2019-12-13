@@ -196,8 +196,8 @@ public class ColumnVectorTest extends CudfTestBase {
   void testGetDeviceMemorySizeStrings() {
     try (ColumnVector v0 = ColumnVector.fromStrings("onetwothree", "four", "five");
          ColumnVector v1 = ColumnVector.fromStrings("onetwothree", "four", null, "five")) {
-      assertEquals(80, v0.getDeviceMemorySize()); //32B + 24B + 24B
-      assertEquals(168, v1.getDeviceMemorySize()); //32B + 24B + 24B + 24B + 64B(for validity vector)
+      assertEquals(35, v0.getDeviceMemorySize()); //19B data + 4*4B offsets = 35
+      assertEquals(103, v1.getDeviceMemorySize()); //19B data + 5*4B + 64B validity vector = 103B
     }
   }
 
@@ -640,10 +640,7 @@ public class ColumnVectorTest extends CudfTestBase {
 
   @Test
   void testAppendStrings() {
-    //failing the test;
-    assertTrue(false);
-/*
-    try (ColumnVector cv = ColumnVector.build(TypeId.STRING, 10, 0, (b) -> {
+    try (ColumnVector cv = ColumnVector.build(DType.STRING, 10, 0, (b) -> {
       b.append("123456789");
       b.append("1011121314151617181920");
       b.append("");
@@ -655,7 +652,6 @@ public class ColumnVectorTest extends CudfTestBase {
       assertEquals("", cv.getJavaString(2));
       assertTrue(cv.isNull(3));
     }
-*/
   }
 
   @Test
@@ -851,8 +847,10 @@ public class ColumnVectorTest extends CudfTestBase {
   void testFindAndReplaceAllStrings() {
     try(ColumnVector vector = ColumnVector.fromStrings("spark", "scala", "spark", "hello", "code");
         ColumnVector oldValues = ColumnVector.fromStrings("spark","code","hello");
-        ColumnVector replacedValues = ColumnVector.fromStrings("sparked", "codec", "hi")) {
-      assertThrows(CudfException.class, () -> vector.findAndReplaceAll(oldValues, replacedValues));
+        ColumnVector replacedValues = ColumnVector.fromStrings("sparked", "codec", "hi");
+        ColumnVector expectedValues = ColumnVector.fromStrings("sparked", "scala", "sparked", "hi", "codec");
+        ColumnVector cv = vector.findAndReplaceAll(oldValues, replacedValues)) {
+      assertColumnsAreEqual(expectedValues, cv);
     }
   }
 
