@@ -29,7 +29,7 @@
 #include "cudf/legacy/groupby.hpp"
 #include "cudf/legacy/io_readers.hpp"
 #include "cudf/legacy/table.hpp"
-#include "cudf/legacy/search.hpp"
+#include "cudf/search.hpp"
 #include "cudf/types.hpp"
 #include "cudf/legacy/join.hpp"
 #include "cudf/column/column.hpp"
@@ -682,29 +682,34 @@ JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_gdfReadJSON(
   CATCH_STD(env, NULL);
 }
 
-JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_Table_gdfBound(JNIEnv *env, jclass,
-    jlong input_jtable, jlong values_jtable, jbooleanArray desc_flags, jboolean are_nulls_smallest,
+JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_Table_bound(JNIEnv *env, jclass,
+    jlong input_jtable, jlong values_jtable, jbooleanArray desc_flags, jbooleanArray are_nulls_smallest,
     jboolean is_upper_bound) {
   JNI_NULL_CHECK(env, input_jtable, "input table is null", 0);
   JNI_NULL_CHECK(env, values_jtable, "values table is null", 0);
-  gdf_column result;
+  using cudf::table_view;
+  using cudf::column;
   try {
-    cudf::table *input = reinterpret_cast<cudf::table *>(input_jtable);
-    cudf::table *values = reinterpret_cast<cudf::table *>(values_jtable);
-    const cudf::jni::native_jbooleanArray n_desc_flags(env, desc_flags);
-    bool are_nulls_largest = !static_cast<bool>(are_nulls_smallest);
-    std::vector<bool> flags(n_desc_flags.data(), n_desc_flags.data() + n_desc_flags.size());
+    table_view *input = reinterpret_cast<table_view *>(input_jtable);
+    table_view *values = reinterpret_cast<table_view *>(values_jtable);
+    cudf::jni::native_jbooleanArray const n_desc_flags(env, desc_flags);
+    cudf::jni::native_jbooleanArray const n_are_nulls_smallest(env, are_nulls_smallest);
 
-    std::unique_ptr<gdf_column, decltype(free) *> result(
-      static_cast<gdf_column *>(calloc(1, sizeof(gdf_column))), free);
-    if (result.get() == nullptr) {
-      cudf::jni::throw_java_exception(env, "java/lang/OutOfMemoryError",
-        "Could not allocate native memory");
+    std::vector<cudf::order> column_desc_flags(n_desc_flags.size());
+    std::vector<cudf::null_order> column_null_orders(n_are_nulls_smallest.size());
+
+    JNI_ARG_CHECK(env, (column_desc_flags.size() == column_null_orders.size()), "null-order and sort-order size mismatch", 0);
+    uint32_t num_columns = column_null_orders.size();
+    for (int i = 0 ; i < num_columns ; i++) {
+      column_desc_flags[i] = n_desc_flags[i] ? cudf::order::DESCENDING : cudf::order::ASCENDING;
+      column_null_orders[i] = n_are_nulls_smallest[i] ? cudf::null_order::BEFORE: cudf::null_order::AFTER;
     }
+
+    std::unique_ptr<column> result;
     if (is_upper_bound) {
-      *result.get() = cudf::upper_bound(*input, *values, flags, are_nulls_largest);
+      result = std::move(cudf::experimental::upper_bound(*input, *values, column_desc_flags, column_null_orders));
     } else {
-      *result.get() = cudf::lower_bound(*input, *values, flags, are_nulls_largest);
+      result = std::move(cudf::experimental::lower_bound(*input, *values, column_desc_flags, column_null_orders));
     }
     return reinterpret_cast<jlong>(result.release());
   }
