@@ -165,8 +165,8 @@ public final class Table implements AutoCloseable {
 
   private static native long[] gdfReadJSON(String filePath, long bufferAddress, long bufferLength, long startRange, long rangeLength, String[] filterColumnNames, String[] columnNames, String[] typesAsStrings) throws CudfException;
 
-  private static native long gdfBound(long inputTable, long valueTable,
-    boolean[] descFlags, boolean areNullsSmallest, boolean isUpperBound) throws CudfException;
+  private static native long bound(long inputTable, long valueTable,
+                                   boolean[] descFlags, boolean[] areNullsSmallest, boolean isUpperBound) throws CudfException;
 
   private static native void gdfWriteORC(int compressionType, String outputFileName, long buffer, long bufferLength, long tableToWrite) throws CudfException;
 
@@ -860,14 +860,11 @@ public final class Table implements AutoCloseable {
    * @param descFlags indicates the ordering of the column(s), true if descending
    * @return ColumnVector with lower bound indices for all rows in valueTable
    */
-  public ColumnVector lowerBound(boolean areNullsSmallest,
+  public ColumnVector lowerBound(boolean[] areNullsSmallest,
       Table valueTable, boolean[] descFlags) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
     assertForBounds(valueTable);
-    return new ColumnVector(gdfBound(this.nativeHandle, valueTable.nativeHandle,
+    return new ColumnVector(bound(this.nativeHandle, valueTable.nativeHandle,
       descFlags, areNullsSmallest, false));
-*/
   }
 
   /**
@@ -899,34 +896,20 @@ public final class Table implements AutoCloseable {
    * @param descFlags indicates the ordering of the column(s), true if descending
    * @return ColumnVector with upper bound indices for all rows in valueTable
    */
-  public ColumnVector upperBound(boolean areNullsSmallest,
+  public ColumnVector upperBound(boolean[] areNullsSmallest,
       Table valueTable, boolean[] descFlags) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
     assertForBounds(valueTable);
-    return new ColumnVector(gdfBound(this.nativeHandle, valueTable.nativeHandle,
+    return new ColumnVector(bound(this.nativeHandle, valueTable.nativeHandle,
       descFlags, areNullsSmallest, true));
-*/
   }
 
   private void assertForBounds(Table valueTable) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
     assert this.getRowCount() != 0 : "Input table cannot be empty";
     assert valueTable.getRowCount() != 0 : "Value table cannot be empty";
-    for (ColumnVector column : columns) {
-      assert column.getType() != DType.STRING && column.getType() != DType.STRING_CATEGORY :
-        "Strings and String categories are not supported";
-    }
-    for (ColumnVector column : valueTable.columns) {
-      assert column.getType() != DType.STRING && column.getType() != DType.STRING_CATEGORY :
-          "Strings and String categories are not supported";
-    }
     for (int i = 0; i < Math.min(columns.length, valueTable.columns.length); i++) {
       assert valueTable.columns[i].getType() == this.getColumn(i).getType() :
           "Input and values tables' data types do not match";
     }
-*/
   }
 
   /////////////////////////////////////////////////////////////////////////////
