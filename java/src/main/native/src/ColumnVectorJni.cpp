@@ -21,6 +21,7 @@
 #include <cudf/filling.hpp>
 #include <cudf/replace.hpp>
 #include <cudf/strings/attributes.hpp>
+#include <cudf/strings/case.hpp>
 #include <cudf/strings/convert/convert_datetime.hpp>
 #include <cudf/strings/strings_column_view.hpp>
 #include <cudf/unary.hpp>
@@ -247,41 +248,13 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_upperStrings(JNIEnv *en
   JNI_NULL_CHECK(env, handle, "column is null", 0);
 
   try {
-    gdf_column *column = reinterpret_cast<gdf_column *>(handle);
+    cudf::column *column = reinterpret_cast<cudf::column *>(handle);
+    cudf::strings_column_view strings_column(column->view());
 
-    if (column->dtype == GDF_STRING) {
-      if (column->size == 0) {
-        cudf::jni::gdf_column_wrapper output(0, column->dtype, 0, nullptr, nullptr,
-                                             column->dtype_info.category);
-        return reinterpret_cast<jlong>(output.release());
-      }
-
-      NVStrings *inst = static_cast<NVStrings *>(column->data);
-      JNI_ARG_CHECK(env, column->size == inst->size(),
-                    "NVStrings size and gdf_column size mismatch", 0);
-      unique_nvstr_ptr res(inst->upper(), &NVStrings::destroy);
-
-      if (column->null_count == 0) {
-        cudf::jni::gdf_column_wrapper output(column->size, column->dtype, column->null_count,
-                                             res.release(), nullptr, column->dtype_info.category);
-        return reinterpret_cast<jlong>(output.release());
-      }
-
-      cudf::jni::jni_rmm_unique_ptr<cudf::valid_type> valid_copy =
-          cudf::jni::jni_rmm_alloc<cudf::valid_type>(env, gdf_valid_allocation_size(column->size));
-      CUDA_TRY(cudaMemcpy(valid_copy.get(), column->valid, gdf_num_bitmask_elements(column->size),
-                          cudaMemcpyDeviceToDevice));
-      cudf::jni::gdf_column_wrapper output(column->size, column->dtype, column->null_count,
-                                           res.release(), valid_copy.release(),
-                                           column->dtype_info.category);
-      return reinterpret_cast<jlong>(output.release());
-    } else {
-      throw std::logic_error("ONLY STRING TYPES ARE SUPPORTED...");
-    }
+    std::unique_ptr<cudf::column> result = cudf::strings::to_upper(strings_column);
+    return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);
-
-  return 0;
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_lowerStrings(JNIEnv *env, jobject j_object,
@@ -289,41 +262,13 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_lowerStrings(JNIEnv *en
   JNI_NULL_CHECK(env, handle, "column is null", 0);
 
   try {
-    gdf_column *column = reinterpret_cast<gdf_column *>(handle);
+    cudf::column *column = reinterpret_cast<cudf::column *>(handle);
+    cudf::strings_column_view strings_column(column->view());
 
-    if (column->dtype == GDF_STRING) {
-      if (column->size == 0) {
-        cudf::jni::gdf_column_wrapper output(0, column->dtype, 0, nullptr, nullptr,
-                                             column->dtype_info.category);
-        return reinterpret_cast<jlong>(output.release());
-      }
-
-      NVStrings *inst = static_cast<NVStrings *>(column->data);
-      JNI_ARG_CHECK(env, column->size == inst->size(),
-                    "NVStrings size and gdf_column size mismatch", 0);
-      unique_nvstr_ptr res(inst->lower(), &NVStrings::destroy);
-
-      if (column->null_count == 0) {
-        cudf::jni::gdf_column_wrapper output(column->size, column->dtype, column->null_count,
-                                             res.release(), nullptr, column->dtype_info.category);
-        return reinterpret_cast<jlong>(output.release());
-      }
-
-      cudf::jni::jni_rmm_unique_ptr<cudf::valid_type> valid_copy =
-          cudf::jni::jni_rmm_alloc<cudf::valid_type>(env, gdf_valid_allocation_size(column->size));
-      CUDA_TRY(cudaMemcpy(valid_copy.get(), column->valid, gdf_num_bitmask_elements(column->size),
-                          cudaMemcpyDeviceToDevice));
-      cudf::jni::gdf_column_wrapper output(column->size, column->dtype, column->null_count,
-                                           res.release(), valid_copy.release(),
-                                           column->dtype_info.category);
-      return reinterpret_cast<jlong>(output.release());
-    } else {
-      throw std::logic_error("ONLY STRING TYPES ARE SUPPORTED...");
-    }
+    std::unique_ptr<cudf::column> result = cudf::strings::to_lower(strings_column);
+    return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);
-
-  return 0;
 }
 
 JNIEXPORT jlongArray JNICALL
