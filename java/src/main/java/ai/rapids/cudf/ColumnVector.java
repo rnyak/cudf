@@ -1804,7 +1804,7 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    * @return native handle of the resulting cudf column, used to construct the Java column
    *         by the lower method.
    */
-//  private static native long lowerStrings(long cudfColumnHandle);
+  private static native long lowerStrings(long cudfColumnHandle);
 
   /**
    * Native method to switch all characters in a column of strings to uppercase characters.
@@ -1812,7 +1812,7 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    * @return native handle of the resulting cudf column, used to construct the Java column
    *         by the upper method.
    */
-//  private static native long upperStrings(long cudfColumnHandle);
+  private static native long upperStrings(long cudfColumnHandle);
 
   /**
    * Wrap static native string capitilization methods, retrieves the column vectors cudf native
@@ -1822,13 +1822,10 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    *         column vector.
    */
   public ColumnVector upper() {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
-    assert type == TypeId.STRING : "A column of type string is required for .upper() operation";
+    assert type == DType.STRING : "A column of type string is required for .upper() operation";
     try (DevicePrediction prediction = new DevicePrediction(getDeviceMemorySize(), "upper")) {
       return new ColumnVector(upperStrings(getNativeCudfColumnAddress()));
     }
-*/
   }
 
   /**
@@ -1839,13 +1836,10 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    *         column vector.
    */
   public ColumnVector lower() {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
-    assert type == TypeId.STRING : "A column of type string is required for .lower() operation";
+    assert type == DType.STRING : "A column of type string is required for .lower() operation";
     try (DevicePrediction prediction = new DevicePrediction(getDeviceMemorySize(), "lower")) {
       return new ColumnVector(lowerStrings(getNativeCudfColumnAddress()));
     }
-*/
   }
 
 //  private native Scalar exactQuantile(long cudfColumnHandle, int quantileMethod, double quantile) throws CudfException;
