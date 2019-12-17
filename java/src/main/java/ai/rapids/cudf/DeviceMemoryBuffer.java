@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * the memory held by the buffer.  Note that because of pooling in RMM or reference counting if a
  * buffer is sliced it may not actually result in the memory being released.
  */
-public class DeviceMemoryBuffer extends MemoryBuffer {
+public class DeviceMemoryBuffer extends BaseDeviceMemoryBuffer {
   private static final Logger log = LoggerFactory.getLogger(DeviceMemoryBuffer.class);
 
   private static final class DeviceBufferCleaner extends MemoryBufferCleaner {
@@ -52,6 +52,10 @@ public class DeviceMemoryBuffer extends MemoryBuffer {
     }
   }
 
+  protected DeviceMemoryBuffer(long address, long lengthInBytes, MemoryBufferCleaner cleaner) {
+    super(address, lengthInBytes, cleaner);
+  }
+
   DeviceMemoryBuffer(long address, long lengthInBytes) {
     super(address, lengthInBytes, new DeviceBufferCleaner(address));
   }
@@ -70,37 +74,6 @@ public class DeviceMemoryBuffer extends MemoryBuffer {
   }
 
   /**
-   * Copy a subset of src to this buffer starting at destOffset.
-   * @param destOffset the offset in this to start copying from.
-   * @param src what to copy from
-   * @param srcOffset offset into src to start out
-   * @param length how many bytes to copy
-   */
-  public final void copyFromHostBuffer(long destOffset, HostMemoryBuffer src, long srcOffset, long length) {
-    addressOutOfBoundsCheck(address + destOffset, length, "copy range dest");
-    src.addressOutOfBoundsCheck(src.address + srcOffset, length, "copy range src");
-    Cuda.memcpy(address + destOffset, src.address + srcOffset, length, CudaMemcpyKind.HOST_TO_DEVICE);
-  }
-
-  /**
-   * Copy a subset of src to this buffer starting at the beginning of this.
-   * @param src what to copy from
-   * @param srcOffset offset into src to start out
-   * @param length how many bytes to copy
-   */
-  public final void copyFromHostBuffer(HostMemoryBuffer src, long srcOffset, long length) {
-    copyFromHostBuffer(0, src, srcOffset, length);
-  }
-
-  /**
-   * Copy everything from src to this buffer starting at the beginning of this buffer.
-   * @param src - Buffer to copy data from
-   */
-  public final void copyFromHostBuffer(HostMemoryBuffer src) {
-    copyFromHostBuffer(0, src, 0, src.length);
-  }
-
-  /**
    * Slice off a part of the device buffer. Note that this is a zero copy operation and all
    * slices must be closed along with the original buffer before the memory is released to RMM.
    * So use this with some caution.
@@ -113,27 +86,5 @@ public class DeviceMemoryBuffer extends MemoryBuffer {
     refCount++;
     cleaner.addRef();
     return new DeviceMemoryBuffer(getAddress() + offset, len, this);
-  }
-
-  /**
-   * Slice off a part of the device buffer, copying it instead of reference counting it.
-   * @param offset where to start the slice at.
-   * @param len how many bytes to slice
-   * @return a device buffer that will need to be closed independently from this buffer.
-   */
-  public final DeviceMemoryBuffer sliceWithCopy(long offset, long len) {
-    addressOutOfBoundsCheck(address + offset, len, "slice");
-    DeviceMemoryBuffer ret = null;
-    boolean success = false;
-    try {
-      ret = allocate(len);
-      Cuda.memcpy(ret.getAddress(), getAddress() + offset, len, CudaMemcpyKind.DEVICE_TO_DEVICE);
-      success = true;
-      return ret;
-    } finally {
-      if (!success && ret != null) {
-        ret.close();
-      }
-    }
   }
 }

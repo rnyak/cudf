@@ -26,7 +26,7 @@ class Cudf {
   /* arith */
 
   static long gdfBinaryOp(ColumnVector lhs, ColumnVector rhs, BinaryOp op, DType outputType) {
-    return gdfBinaryOpVV(lhs.getNativeCudfColumnAddress(), rhs.getNativeCudfColumnAddress(),
+    return gdfBinaryOpVV(lhs.getNativeView(), rhs.getNativeView(),
         op.nativeId, outputType.nativeId);
   }
 
@@ -97,7 +97,7 @@ class Cudf {
 
 
   static Scalar reduce(ColumnVector v, ReductionOp op, DType outType) {
-    return reduce(v.getNativeCudfColumnAddress(), op.nativeId, outType.nativeId);
+    return reduce(v.getNativeView(), op.nativeId, outType.nativeId);
   }
 
   private static native Scalar reduce(long v, int op, int dtype);

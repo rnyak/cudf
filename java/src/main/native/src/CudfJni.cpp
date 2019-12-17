@@ -212,10 +212,10 @@ JNIEXPORT jobject JNICALL Java_ai_rapids_cudf_Cudf_reduce(JNIEnv *env, jclass, j
                                                           jint jdtype) {
   JNI_NULL_CHECK(env, jcol, "input column is null", 0);
   try {
-    gdf_column *col = reinterpret_cast<gdf_column *>(jcol);
-    cudf::reduction::operators op = static_cast<cudf::reduction::operators>(jop);
-    gdf_dtype dtype = static_cast<gdf_dtype>(jdtype);
-    gdf_scalar scalar = cudf::reduce(col, op, dtype);
+//    gdf_column *col = reinterpret_cast<gdf_column *>(jcol);
+//    cudf::reduction::operators op = static_cast<cudf::reduction::operators>(jop);
+//    gdf_dtype dtype = static_cast<gdf_dtype>(jdtype);
+//    gdf_scalar scalar = cudf::reduce(col, op, dtype);
 //    return cudf::jni::jscalar_from_scalar(env, scalar, col->dtype_info.time_unit);
     throw std::logic_error("BAD IMPLEMENTATION");
   }

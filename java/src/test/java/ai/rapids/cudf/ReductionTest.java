@@ -47,7 +47,7 @@ class ReductionTest extends CudfTestBase {
     case INT32:
       return Scalar.fromInt((Integer) expectedObject);
     case INT64:
-      return Scalar.fromLong((Integer) expectedObject);
+      return Scalar.fromLong((Long) expectedObject);
     case FLOAT32:
       return Scalar.fromFloat((Float) expectedObject);
     case FLOAT64:

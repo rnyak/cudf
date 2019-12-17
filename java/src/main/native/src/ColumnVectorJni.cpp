@@ -248,8 +248,8 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_upperStrings(JNIEnv *en
   JNI_NULL_CHECK(env, handle, "column is null", 0);
 
   try {
-    cudf::column *column = reinterpret_cast<cudf::column *>(handle);
-    cudf::strings_column_view strings_column(column->view());
+    cudf::column_view *column = reinterpret_cast<cudf::column_view *>(handle);
+    cudf::strings_column_view strings_column(*column);
 
     std::unique_ptr<cudf::column> result = cudf::strings::to_upper(strings_column);
     return reinterpret_cast<jlong>(result.release());
@@ -262,8 +262,8 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_lowerStrings(JNIEnv *en
   JNI_NULL_CHECK(env, handle, "column is null", 0);
 
   try {
-    cudf::column *column = reinterpret_cast<cudf::column *>(handle);
-    cudf::strings_column_view strings_column(column->view());
+    cudf::column_view *column = reinterpret_cast<cudf::column_view *>(handle);
+    cudf::strings_column_view strings_column(*column);
 
     std::unique_ptr<cudf::column> result = cudf::strings::to_lower(strings_column);
     return reinterpret_cast<jlong>(result.release());
@@ -298,11 +298,11 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_concatenate(JNIEnv *env
   using cudf::column;
   using cudf::column_view;
   try {
-    cudf::jni::native_jpointerArray<column> columns(env, column_handles);
+    cudf::jni::native_jpointerArray<column_view> columns(env, column_handles);
     std::vector<column_view> columns_vector(columns.size());
     for (int i = 0; i < columns.size(); ++i) {
       JNI_NULL_CHECK(env, columns[i], "column to concat is null", 0);
-      columns_vector[i] = columns[i]->view();
+      columns_vector[i] = *columns[i];
     }
     std::unique_ptr<column> result = cudf::concatenate(columns_vector);
     return reinterpret_cast<jlong>(result.release());
@@ -345,9 +345,9 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_replaceNulls(JNIEnv *en
   JNI_NULL_CHECK(env, j_col, "column is null", 0);
   JNI_NULL_CHECK(env, j_scalar, "scalar is null", 0);
   try {
-    auto col = reinterpret_cast<cudf::column*>(j_col);
+    cudf::column_view col = *reinterpret_cast<cudf::column_view*>(j_col);
     auto val = reinterpret_cast<cudf::scalar*>(j_scalar);
-    std::unique_ptr<cudf::column> result = cudf::experimental::replace_nulls(*col, *val);
+    std::unique_ptr<cudf::column> result = cudf::experimental::replace_nulls(col, *val);
     return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);
@@ -452,22 +452,22 @@ JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_ColumnVector_split(JNIEnv *env,
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_lengths(JNIEnv *env, jclass clazz,
-                                                                     jlong column_handle) {
-  JNI_NULL_CHECK(env, column_handle, "input column is null", 0);
+                                                                 jlong view_handle) {
+  JNI_NULL_CHECK(env, view_handle, "input column is null", 0);
   try {
-    cudf::column *n_column = reinterpret_cast<cudf::column *>(column_handle);
-    std::unique_ptr<cudf::column> result = cudf::strings::count_characters(cudf::strings_column_view(n_column->view()));
+    cudf::column_view *n_column = reinterpret_cast<cudf::column_view *>(view_handle);
+    std::unique_ptr<cudf::column> result = cudf::strings::count_characters(cudf::strings_column_view(*n_column));
     return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_byteCount(JNIEnv *env, jclass clazz,
-                                                                       jlong column_handle) {
-  JNI_NULL_CHECK(env, column_handle, "input column is null", 0);
+                                                                   jlong view_handle) {
+  JNI_NULL_CHECK(env, view_handle, "input column is null", 0);
   try {
-    cudf::column *n_column = reinterpret_cast<cudf::column *>(column_handle);
-    std::unique_ptr<cudf::column> result = cudf::strings::count_bytes(cudf::strings_column_view(n_column->view()));
+    cudf::column_view *n_column = reinterpret_cast<cudf::column_view *>(view_handle);
+    std::unique_ptr<cudf::column> result = cudf::strings::count_bytes(cudf::strings_column_view(*n_column));
     return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);
@@ -514,15 +514,16 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_findAndReplaceAll(JNIEn
   JNI_NULL_CHECK(env, new_values_handle, "replace column is null", 0);
   JNI_NULL_CHECK(env, input_handle, "input column is null", 0);
 
+  using cudf::column_view;
   using cudf::column;
 
   try {
-    column *input_column = reinterpret_cast<column *>(input_handle);
-    column *old_values_column = reinterpret_cast<column *>(old_values_handle);
-    column *new_values_column = reinterpret_cast<column *>(new_values_handle);
+    column_view *input_column = reinterpret_cast<column_view *>(input_handle);
+    column_view *old_values_column = reinterpret_cast<column_view *>(old_values_handle);
+    column_view *new_values_column = reinterpret_cast<column_view *>(new_values_handle);
 
     std::unique_ptr<column> result =
-        cudf::experimental::find_and_replace_all(input_column->view(), old_values_column->view(), new_values_column->view());
+        cudf::experimental::find_and_replace_all(*input_column, *old_values_column, *new_values_column);
 
     return reinterpret_cast<jlong>(result.release());
   }
@@ -532,8 +533,8 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_findAndReplaceAll(JNIEn
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_isNullNative(JNIEnv *env, jclass, jlong handle) {
   JNI_NULL_CHECK(env, handle, "input column is null", 0);
   try {
-    const cudf::column *input = reinterpret_cast<cudf::column *>(handle);
-    std::unique_ptr<cudf::column> ret = cudf::experimental::is_null(input->view());
+    const cudf::column_view *input = reinterpret_cast<cudf::column_view *>(handle);
+    std::unique_ptr<cudf::column> ret = cudf::experimental::is_null(*input);
     return reinterpret_cast<jlong>(ret.release());
   }
   CATCH_STD(env, 0);
@@ -542,8 +543,8 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_isNullNative(JNIEnv *en
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_isNotNullNative(JNIEnv *env, jclass, jlong handle) {
   JNI_NULL_CHECK(env, handle, "input column is null", 0);
   try {
-    const cudf::column *input = reinterpret_cast<cudf::column *>(handle);
-    std::unique_ptr<cudf::column> ret = cudf::experimental::is_valid(input->view());
+    const cudf::column_view *input = reinterpret_cast<cudf::column_view *>(handle);
+    std::unique_ptr<cudf::column> ret = cudf::experimental::is_valid(*input);
     return reinterpret_cast<jlong>(ret.release());
   }
   CATCH_STD(env, 0);
@@ -553,88 +554,88 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_unaryOperation(JNIEnv *
         jlong input_ptr, jint int_op) {
   JNI_NULL_CHECK(env, input_ptr, "input is null", 0);
   try {
-    cudf::column *input = reinterpret_cast<cudf::column *>(input_ptr);
+    cudf::column_view *input = reinterpret_cast<cudf::column_view *>(input_ptr);
     cudf::experimental::unary_op op = static_cast<cudf::experimental::unary_op>(int_op);
-    std::unique_ptr<cudf::column> ret = cudf::experimental::unary_operation(input->view(), op);
+    std::unique_ptr<cudf::column> ret = cudf::experimental::unary_operation(*input, op);
     return reinterpret_cast<jlong>(ret.release());
   }
   CATCH_STD(env, 0);
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_year(JNIEnv *env, jclass,
-                                                                        jlong input_ptr) {
+                                                              jlong input_ptr) {
   JNI_NULL_CHECK(env, input_ptr, "input is null", 0);
   try {
-    const cudf::column *input = reinterpret_cast<cudf::column *>(input_ptr);
-    std::unique_ptr<cudf::column> output = cudf::datetime::extract_year(input->view());
+    const cudf::column_view *input = reinterpret_cast<cudf::column_view *>(input_ptr);
+    std::unique_ptr<cudf::column> output = cudf::datetime::extract_year(*input);
     return reinterpret_cast<jlong>(output.release());
   }
   CATCH_STD(env, 0);
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_month(JNIEnv *env, jclass,
-                                                                         jlong input_ptr) {
+                                                               jlong input_ptr) {
   JNI_NULL_CHECK(env, input_ptr, "input is null", 0);
   try {
-    const cudf::column *input = reinterpret_cast<cudf::column *>(input_ptr);
-    std::unique_ptr<cudf::column> output = cudf::datetime::extract_month(input->view());
+    const cudf::column_view *input = reinterpret_cast<cudf::column_view *>(input_ptr);
+    std::unique_ptr<cudf::column> output = cudf::datetime::extract_month(*input);
     return reinterpret_cast<jlong>(output.release());
   }
   CATCH_STD(env, 0);
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_day(JNIEnv *env, jclass,
-                                                                       jlong input_ptr) {
+                                                             jlong input_ptr) {
   JNI_NULL_CHECK(env, input_ptr, "input is null", 0);
   try {
-    const cudf::column *input = reinterpret_cast<cudf::column *>(input_ptr);
-    std::unique_ptr<cudf::column> output = cudf::datetime::extract_day(input->view());
+    const cudf::column_view *input = reinterpret_cast<cudf::column_view *>(input_ptr);
+    std::unique_ptr<cudf::column> output = cudf::datetime::extract_day(*input);
     return reinterpret_cast<jlong>(output.release());
   }
   CATCH_STD(env, 0);
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_hour(JNIEnv *env, jclass,
-                                                                        jlong input_ptr) {
+                                                              jlong input_ptr) {
   JNI_NULL_CHECK(env, input_ptr, "input is null", 0);
   try {
-    const cudf::column *input = reinterpret_cast<cudf::column *>(input_ptr);
-    std::unique_ptr<cudf::column> output = cudf::datetime::extract_hour(input->view());
+    const cudf::column_view *input = reinterpret_cast<cudf::column_view *>(input_ptr);
+    std::unique_ptr<cudf::column> output = cudf::datetime::extract_hour(*input);
     return reinterpret_cast<jlong>(output.release());
   }
   CATCH_STD(env, 0);
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_minute(JNIEnv *env, jclass,
-                                                                          jlong input_ptr) {
+                                                                jlong input_ptr) {
   JNI_NULL_CHECK(env, input_ptr, "input is null", 0);
   try {
-    const cudf::column *input = reinterpret_cast<cudf::column *>(input_ptr);
-    std::unique_ptr<cudf::column> output = cudf::datetime::extract_minute(input->view());
+    const cudf::column_view *input = reinterpret_cast<cudf::column_view *>(input_ptr);
+    std::unique_ptr<cudf::column> output = cudf::datetime::extract_minute(*input);
     return reinterpret_cast<jlong>(output.release());
   }
   CATCH_STD(env, 0);
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_second(JNIEnv *env, jclass,
-                                                                          jlong input_ptr) {
+                                                                jlong input_ptr) {
   JNI_NULL_CHECK(env, input_ptr, "input is null", 0);
   try {
-    const cudf::column *input = reinterpret_cast<cudf::column *>(input_ptr);
-    std::unique_ptr<cudf::column> output = cudf::datetime::extract_second(input->view());
+    const cudf::column_view *input = reinterpret_cast<cudf::column_view *>(input_ptr);
+    std::unique_ptr<cudf::column> output = cudf::datetime::extract_second(*input);
     return reinterpret_cast<jlong>(output.release());
   }
   CATCH_STD(env, 0);
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_castTo(JNIEnv *env,
-                                                                   jobject j_object,
-                                                                   jlong handle, jint type) {
+                                                                jobject j_object,
+                                                                jlong handle, jint type) {
   JNI_NULL_CHECK(env, handle, "native handle is null", 0);
   try {
-    cudf::column *column = reinterpret_cast<cudf::column *>(handle);
+    cudf::column_view *column = reinterpret_cast<cudf::column_view *>(handle);
     cudf::data_type n_data_type(static_cast<cudf::type_id>(type));
-    std::unique_ptr<cudf::column> result = cudf::experimental::cast(column->view(), n_data_type);
+    std::unique_ptr<cudf::column> result = cudf::experimental::cast(*column, n_data_type);
     return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);
@@ -647,8 +648,8 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_stringTimestampToTimest
 
   try {
     cudf::jni::native_jstring format(env, formatObj);
-    cudf::column *column = reinterpret_cast<cudf::column *>(handle);
-    cudf::strings_column_view strings_column(column->view());
+    cudf::column_view *column = reinterpret_cast<cudf::column_view *>(handle);
+    cudf::strings_column_view strings_column(*column);
 
     std::unique_ptr<cudf::column> result = cudf::strings::to_timestamps(strings_column, cudf::data_type(static_cast<cudf::type_id>(time_unit)), format.get());
     return reinterpret_cast<jlong>(result.release());
