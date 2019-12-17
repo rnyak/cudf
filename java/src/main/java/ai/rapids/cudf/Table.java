@@ -59,14 +59,14 @@ public final class Table implements AutoCloseable {
 
     // Since Arrays are mutable objects make a copy
     this.columns = new ColumnVector[columns.length];
-    long[] cudfColumnPointers = new long[columns.length];
+    long[] viewPointers = new long[columns.length];
     for (int i = 0; i < columns.length; i++) {
       this.columns[i] = columns[i];
       columns[i].incRefCount();
-      cudfColumnPointers[i] = columns[i].getNativeCudfColumnAddress();
+      viewPointers[i] = columns[i].getNativeView();
     }
 
-    nativeHandle = createCudfTableView(cudfColumnPointers);
+    nativeHandle = createCudfTableView(viewPointers);
   }
 
   private Table(long[] cudfColumns) {
@@ -76,14 +76,18 @@ public final class Table implements AutoCloseable {
       for (int i = 0; i < cudfColumns.length; i++) {
         this.columns[i] = new ColumnVector(cudfColumns[i]);
       }
-      nativeHandle = createCudfTableView(cudfColumns);
+      long[] views = new long[columns.length];
+      for (int i = 0; i < columns.length; i++) {
+        views[i] = columns[i].getNativeView();
+      }
+      nativeHandle = createCudfTableView(views);
       this.rows = columns[0].getRowCount();
     } catch (Throwable t) {
       for (int i = 0; i < cudfColumns.length; i++) {
         if (this.columns[i] != null) {
           this.columns[i].close();
         } else {
-          new CudfColumn(cudfColumns[i]).deleteCudfColumn();
+          new CudfColumn(cudfColumns[i]).close();
         }
       }
       throw t;
@@ -254,7 +258,7 @@ public final class Table implements AutoCloseable {
   //XXX until we have split a ColumnVector into a host column and a device column
   // caching the table_view is a bug, as we could drop the device data which would
   // invalidate everything that the table_view is pointing at on the device.
-  private native long createCudfTableView(long[] nativeColumnHandles);
+  private native long createCudfTableView(long[] nativeColumnViewHandles);
 
   /////////////////////////////////////////////////////////////////////////////
   // TABLE CREATION APIs
@@ -729,7 +733,7 @@ public final class Table implements AutoCloseable {
           "index is out of range 0 <= " + index + " < " + columns.length;
       isDescending[i] = args[i].isDescending;
       areNullsSmallest[i] = args[i].isNullSmallest;
-      sortKeys[i] = columns[index].getNativeCudfColumnAddress();
+      sortKeys[i] = columns[index].getNativeView();
     }
 
     try (DevicePrediction prediction = new DevicePrediction(getDeviceMemorySize(), "orderBy")) {
@@ -840,7 +844,7 @@ public final class Table implements AutoCloseable {
     assert mask.getType() == DType.BOOL8 : "Mask column must be of type BOOL8";
     assert getRowCount() == 0 || getRowCount() == mask.getRowCount() : "Mask column has incorrect size";
     try (DevicePrediction prediction = new DevicePrediction(getDeviceMemorySize(), "filter")) {
-      return new Table(filter(nativeHandle, mask.getNativeCudfColumnAddress()));
+      return new Table(filter(nativeHandle, mask.getNativeView()));
     }
   }
 
@@ -1154,7 +1158,7 @@ public final class Table implements AutoCloseable {
       return this;
     }
 
-    public TestBuilder timestampDayColumn(Long... values) {
+    public TestBuilder timestampDayColumn(Integer... values) {
       types.add(DType.TIMESTAMP_DAYS);
       typeErasedData.add(values);
       return this;

@@ -84,11 +84,11 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_Table_createCudfTableView(JNIEnv *en
   JNI_NULL_CHECK(env, j_cudf_columns, "columns are null", 0);
 
   try {
-      cudf::jni::native_jpointerArray<cudf::column> n_cudf_columns(env, j_cudf_columns);
+      cudf::jni::native_jpointerArray<cudf::column_view> n_cudf_columns(env, j_cudf_columns);
 
     std::vector<cudf::column_view> column_views(n_cudf_columns.size());
     for (int i = 0 ; i < n_cudf_columns.size() ; i++) {
-        column_views[i] = n_cudf_columns[i]->view();
+        column_views[i] = *n_cudf_columns[i];
     }
     cudf::table_view* tv = new cudf::table_view(column_views);
     return reinterpret_cast<jlong>(tv);
@@ -103,18 +103,18 @@ JNIEXPORT void JNICALL Java_ai_rapids_cudf_Table_deleteCudfTable(JNIEnv *env, jc
 }
 
 JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_orderBy(
-    JNIEnv *env, jclass j_class_object, jlong j_input_table, jlongArray j_sort_keys_gdfcolumns,
+    JNIEnv *env, jclass j_class_object, jlong j_input_table, jlongArray j_sort_keys_columns,
     jbooleanArray j_is_descending, jbooleanArray j_are_nulls_smallest) {
 
   // input validations & verifications
   JNI_NULL_CHECK(env, j_input_table, "input table is null", NULL);
-  JNI_NULL_CHECK(env, j_sort_keys_gdfcolumns, "input table is null", NULL);
+  JNI_NULL_CHECK(env, j_sort_keys_columns, "input table is null", NULL);
   JNI_NULL_CHECK(env, j_is_descending, "sort order array is null", NULL);
   JNI_NULL_CHECK(env, j_are_nulls_smallest, "null order array is null", NULL);
 
   try {
-    cudf::jni::native_jpointerArray<cudf::column> n_sort_keys_gdfcolumns(env, j_sort_keys_gdfcolumns);
-    jsize num_columns = n_sort_keys_gdfcolumns.size();
+    cudf::jni::native_jpointerArray<cudf::column_view> n_sort_keys_columns(env, j_sort_keys_columns);
+    jsize num_columns = n_sort_keys_columns.size();
     const cudf::jni::native_jbooleanArray n_is_descending(env, j_is_descending);
     jsize num_columns_is_desc = n_is_descending.size();
 
@@ -143,7 +143,7 @@ JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_orderBy(
     std::vector<cudf::column_view> columns;
     columns.reserve(num_columns);
     for (int i = 0; i < num_columns; i++) {
-      columns.push_back(n_sort_keys_gdfcolumns[i]->view());
+      columns.push_back(*n_sort_keys_columns[i]);
     }
     cudf::table_view keys(columns);
 
@@ -614,14 +614,14 @@ JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_gdfGroupByAggregate(
 }
 
 JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_filter(JNIEnv *env, jclass,
-                                                                 jlong input_jtable,
-                                                                 jlong mask_jcol) {
+                                                              jlong input_jtable,
+                                                              jlong mask_jcol) {
   JNI_NULL_CHECK(env, input_jtable, "input table is null", 0);
   JNI_NULL_CHECK(env, mask_jcol, "mask column is null", 0);
   try {
     cudf::table_view *input = reinterpret_cast<cudf::table_view *>(input_jtable);
-    cudf::column *mask = reinterpret_cast<cudf::column *>(mask_jcol);
-    std::unique_ptr<cudf::experimental::table> result = cudf::experimental::apply_boolean_mask(*input, mask->view());
+    cudf::column_view *mask = reinterpret_cast<cudf::column_view *>(mask_jcol);
+    std::unique_ptr<cudf::experimental::table> result = cudf::experimental::apply_boolean_mask(*input, *mask);
     return cudf::jni::convert_table_for_return(env, result);
   }
   CATCH_STD(env, 0);

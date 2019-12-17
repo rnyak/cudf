@@ -25,6 +25,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.util.Optional;
 
 /**
  * Serialize and deserialize CUDF tables and columns using a custom format.  The goal of this is
@@ -363,6 +365,8 @@ public class JCudfSerialization {
 
     public abstract void writeInt(int i) throws IOException;
 
+    public abstract void writeIntNativeOrder(int i) throws IOException;
+
     public abstract void writeLong(long val) throws IOException;
 
     /**
@@ -412,6 +416,13 @@ public class JCudfSerialization {
     @Override
     public void writeInt(int i) throws IOException {
       dout.writeInt(i);
+    }
+
+    @Override
+    public void writeIntNativeOrder(int i) throws IOException {
+      // TODO this only works on Little Endian Architectures, x86.  If we need
+      // to support others we need to detect the endianess and switch on the right implementation.
+      writeInt(Integer.reverseBytes(i));
     }
 
     @Override
@@ -466,6 +477,12 @@ public class JCudfSerialization {
     public void writeInt(int i) {
       buffer.setInt(offset, i);
       offset += 4;
+    }
+
+    @Override
+    public void writeIntNativeOrder(int i) {
+      // This is already in the native order...
+      writeInt(i);
     }
 
     @Override
@@ -1011,11 +1028,31 @@ public class JCudfSerialization {
 
   private static long copySlicedOffsets(DataWriter out, ColumnBufferProvider column, long rowOffset,
                                         long numRows) throws IOException {
-    // If an offset is copied over as a part of a slice the first entry may be non-zero.  This is
-    // okay because we fix them up when they are deserialized
     long bytesToCopy = (numRows + 1) * 4;
     long srcOffset = rowOffset * 4;
-    return copySlicedAndPad(out, column, ColumnVector.BufferType.OFFSET, srcOffset, bytesToCopy);
+    if (rowOffset == 0) {
+      return copySlicedAndPad(out, column, ColumnVector.BufferType.OFFSET, srcOffset, bytesToCopy);
+    }
+    HostMemoryBuffer buff = column.getHostBufferFor(ColumnVector.BufferType.OFFSET);
+    long startOffset = column.getBufferStartOffset(ColumnVector.BufferType.OFFSET) + srcOffset;
+    if (bytesToCopy >= Integer.MAX_VALUE) {
+      throw new IllegalStateException("Copy is too large, need to do chunked copy");
+    }
+    ByteBuffer bb = buff.asByteBuffer(startOffset, (int)bytesToCopy);
+    int start = 0;
+    if (numRows > 0) {
+      start = bb.getInt();
+    }
+    out.writeIntNativeOrder(0);
+    long total = 4;
+    for (int i = 1; i < (numRows + 1); i++) {
+      int offset = bb.getInt();
+      out.writeIntNativeOrder(offset - start);
+      total += 4;
+    }
+    assert total == bytesToCopy;
+    long ret = padFor64byteAlignment(out, total);
+    return ret;
   }
 
   private static int[] copyConcateOffsets(DataWriter out,
@@ -1026,7 +1063,7 @@ public class JCudfSerialization {
     int offsetToAdd = 0;
 
     // First offset is always 0
-    out.writeInt(0);
+    out.writeIntNativeOrder(0);
     totalCopied += 4;
 
     for (int batchIndex = 0; batchIndex < providers.length; batchIndex++) {
@@ -1234,7 +1271,7 @@ public class JCudfSerialization {
       ColumnVector[] vectors = new ColumnVector[numColumns];
       DeviceMemoryBuffer validity = null;
       DeviceMemoryBuffer data = null;
-      HostMemoryBuffer offsets = null;
+      DeviceMemoryBuffer offsets = null;
       try {
         for (int column = 0; column < numColumns; column++) {
           DType type = dataTypes[column];
@@ -1246,7 +1283,7 @@ public class JCudfSerialization {
           }
 
           if (type == DType.STRING) {
-            offsets = combinedBufferOnHost.slice(offsetInfo.offsets, offsetInfo.offsetsLen);
+            offsets = combinedBuffer.slice(offsetInfo.offsets, offsetInfo.offsetsLen);
           }
 
           if (offsetInfo.dataLen == 0) {
@@ -1257,7 +1294,7 @@ public class JCudfSerialization {
             data = combinedBuffer.slice(offsetInfo.data, offsetInfo.dataLen);
           }
 
-          vectors[column] = new ColumnVector(type, numRows, nullCount, data, validity, offsets, true);
+          vectors[column] = new ColumnVector(type, numRows, Optional.of(nullCount), data, validity, offsets);
           validity = null;
           data = null;
           offsets = null;
