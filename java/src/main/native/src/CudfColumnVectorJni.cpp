@@ -88,15 +88,45 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_CudfColumn_makeStringCudfColumn(
     cudf::size_type n_data_size = host_offsets[size];
     cudf::bitmask_type *n_validity = reinterpret_cast<cudf::bitmask_type *>(j_valid_data);
 
-    rmm::device_vector<char> dev_char_data(n_char_data, n_char_data + n_data_size);
-    rmm::device_vector<cudf::size_type> dev_offsets(host_offsets, host_offsets + size + 1);
+    std::unique_ptr<cudf::column> offsets = cudf::make_numeric_column(
+            cudf::data_type{cudf::INT32},
+            size + 1,
+            cudf::mask_state::UNALLOCATED);
+    auto offsets_view = offsets->mutable_view();
+    JNI_CUDA_TRY(env, 0, cudaMemcpyAsync(
+                offsets_view.data<int32_t>(),
+                host_offsets,
+                (size + 1) * sizeof(int32_t),
+                cudaMemcpyHostToDevice));
+
+    std::unique_ptr<cudf::column> data = cudf::make_numeric_column(
+            cudf::data_type{cudf::INT8},
+            n_data_size,
+            cudf::mask_state::UNALLOCATED);
+    auto data_view = data->mutable_view();
+    JNI_CUDA_TRY(env, 0, cudaMemcpyAsync(
+                data_view.data<int8_t>(),
+                n_char_data,
+                n_data_size,
+                cudaMemcpyHostToDevice));
+
     std::unique_ptr<cudf::column> column;
     if (j_null_count == 0) {
-      column = cudf::make_strings_column(dev_char_data, dev_offsets);
+      column = cudf::make_strings_column(size, std::move(offsets), std::move(data), j_null_count, {});
     } else {
-      rmm::device_vector<cudf::bitmask_type> dev_validity(n_validity, n_validity + cudf::word_index(size) + 1);
-      column = cudf::make_strings_column(dev_char_data, dev_offsets, dev_validity, j_null_count);
+      cudf::size_type bytes = (cudf::word_index(size) + 1) * sizeof(cudf::bitmask_type);
+      rmm::device_buffer dev_validity(bytes);
+      JNI_CUDA_TRY(env, 0, cudaMemcpyAsync(
+                  dev_validity.data(),
+                  n_validity,
+                  bytes,
+                  cudaMemcpyHostToDevice));
+
+      column = cudf::make_strings_column(size, std::move(offsets), std::move(data),
+              j_null_count, std::move(dev_validity));
     }
+
+    JNI_CUDA_TRY(env, 0, cudaStreamSynchronize(0));
     return reinterpret_cast<jlong>(column.release());
   }
   CATCH_STD(env, 0);
