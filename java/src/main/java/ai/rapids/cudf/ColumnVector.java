@@ -1771,9 +1771,9 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
 
 //  private native Scalar approxQuantile(long cudfColumnHandle, double quantile) throws CudfException;
 
-//  private static native long rollingWindow(long cudfColumnHandle, int window, int min_periods,
-//                                           int forward_window, int agg_type, long window_col,
-//                                           long min_periods_col, long forward_window_col);
+  private static native long rollingWindow(long viewHandle, int min_periods, int agg_type,
+                                           int preceding, int following,
+                                           long preceding_col, long following_col);
 
   private static native long lengths(long viewHandle) throws CudfException;
 
@@ -2292,23 +2292,19 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
   /**
    * This function aggregates values in a window around each element i of the input
    * column. Please refer to WindowsOptions for various options that can be passed.
-   * @param opts various window function arguments.
+   * @param op the operation to perform.
+   * @param options various window function arguments.
    * @return Column containing aggregate function result.
    */
-  public ColumnVector rollingWindow(WindowOptions opts) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
+  public ColumnVector rollingWindow(RollingOp op, WindowOptions options) {
     return new ColumnVector(
-        rollingWindow(this.getNativeCudfColumnAddress(),
-            opts.getWindow() >= 0 ? opts.getWindow() : 0,
-            opts.getMinPeriods() >= 0 ? opts.getMinPeriods() : 0,
-            opts.getForwardWindow() >=0 ? opts.getForwardWindow() : 0,
-            opts.getAggType().nativeId,
-            opts.getWindowCol() == null ? 0 : opts.getWindowCol().getNativeCudfColumnAddress(),
-            opts.getMinPeriodsCol() == null ? 0 : opts.getMinPeriodsCol().getNativeCudfColumnAddress(),
-            opts.getForwardWindowCol() == null ? 0 :
-            opts.getForwardWindowCol().getNativeCudfColumnAddress()));
-*/
+        rollingWindow(this.getNativeView(),
+            options.getMinPeriods(),
+            op.nativeId,
+            options.getPreceding(),
+            options.getFollowing(),
+            options.getPrecedingCol() == null ? 0 : options.getPrecedingCol().getNativeView(),
+            options.getFollowingCol() == null ? 0 : options.getFollowingCol().getNativeView()));
   }
 
   /**
