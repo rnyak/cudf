@@ -20,6 +20,7 @@
 #include <cudf/datetime.hpp>
 #include <cudf/filling.hpp>
 #include <cudf/replace.hpp>
+#include <cudf/search.hpp>
 #include <cudf/strings/attributes.hpp>
 #include <cudf/strings/case.hpp>
 #include <cudf/strings/convert/convert_datetime.hpp>
@@ -655,5 +656,34 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_stringTimestampToTimest
     return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);
+}
+
+JNIEXPORT jboolean JNICALL Java_ai_rapids_cudf_ColumnVector_containsScalar(JNIEnv *env, jobject j_object,
+                                                                 jlong j_view_handle, jlong j_scalar_handle) {
+  JNI_NULL_CHECK(env, j_view_handle, "haystack vector is null", false);
+  JNI_NULL_CHECK(env, j_scalar_handle, "scalar needle is null", false);
+  try {
+    cudf::column_view* column_view = reinterpret_cast<cudf::column_view*>(j_view_handle);
+    cudf::scalar* scalar = reinterpret_cast<cudf::scalar*>(j_scalar_handle);
+
+    return cudf::experimental::contains(*column_view, *scalar);
+  }
+  CATCH_STD(env, 0);
+
+}
+
+JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_containsVector(JNIEnv *env, jobject j_object,
+                                                                 jlong j_haystack_handle, jlong j_needle_handle) {
+  JNI_NULL_CHECK(env, j_haystack_handle, "haystack vector is null", false);
+  JNI_NULL_CHECK(env, j_needle_handle, "needle vector is null", false);
+  try {
+    cudf::column_view* haystack = reinterpret_cast<cudf::column_view*>(j_haystack_handle);
+    cudf::column_view* needle = reinterpret_cast<cudf::column_view*>(j_needle_handle);
+
+    std::unique_ptr<cudf::column> result = std::move(cudf::experimental::contains(*haystack, *needle));
+    return reinterpret_cast<jlong>(result.release());
+  }
+  CATCH_STD(env, 0);
+
 }
 } // extern "C"

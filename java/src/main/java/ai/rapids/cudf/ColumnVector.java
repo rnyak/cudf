@@ -1030,6 +1030,48 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
   }
 
   /**
+   * Find if the `needle` is present in this col
+   *
+   * example:
+   *
+   *  Single Column:
+   *      idx      0   1   2   3   4
+   *      col = { 10, 20, 20, 30, 50 }
+   *  Scalar:
+   *   value = { 20 }
+   *   result = true
+   *
+   * @param needle
+   * @return true if needle is present else false
+   */
+  public boolean contains(Scalar needle) {
+    return containsScalar(offHeap.cudfColumnHandle.getViewHandle(), needle.getScalarHandle());
+  }
+
+  /**
+   * Returns a new ColumnVector of {@link DType#BOOL8} elements containing true if the corresponding
+   * entry in haystack is contained in needles and false if it is not. The caller will be responsible
+   * for the lifecycle of the new vector.
+   *
+   * example:
+   *
+   *   haystack = { 10, 20, 30, 40, 50 }
+   *   needles  = { 20, 40, 60, 80 }
+   *
+   *   result = { false, true, false, true, false }
+   *
+   * @param needles
+   * @return A new ColumnVector of type {@link DType#BOOL8}
+   */
+  public ColumnVector contains(ColumnVector needles) {
+    return new ColumnVector(containsVector(offHeap.cudfColumnHandle.getViewHandle(), needles.offHeap.cudfColumnHandle.getViewHandle()));
+  }
+
+  private static native boolean containsScalar(long columnViewHaystack, long scalarHandle) throws CudfException;
+
+  private static native long containsVector(long columnViewHaystack, long columnViewNeedles) throws CudfException;
+
+  /**
    * Slices a column (including null values) into a set of columns
    * according to a set of indices. The caller owns the ColumnVectors and is responsible
    * closing them
