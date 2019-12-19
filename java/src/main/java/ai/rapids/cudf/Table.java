@@ -245,11 +245,11 @@ public final class Table implements AutoCloseable {
   private static native long[] orderBy(long inputTable, long[] sortKeys, boolean[] isDescending,
                                        boolean[] areNullsSmallest) throws CudfException;
 
-  private static native long[] gdfLeftJoin(long leftTable, int[] leftJoinCols, long rightTable,
-                                           int[] rightJoinCols) throws CudfException;
+  private static native long[] leftJoin(long leftTable, int[] leftJoinCols, long rightTable,
+                                        int[] rightJoinCols) throws CudfException;
 
-  private static native long[] gdfInnerJoin(long leftTable, int[] leftJoinCols, long rightTable,
-                                            int[] rightJoinCols) throws CudfException;
+  private static native long[] innerJoin(long leftTable, int[] leftJoinCols, long rightTable,
+                                         int[] rightJoinCols) throws CudfException;
 
   private static native long[] concatenate(long[] cudfTablePointers) throws CudfException;
 
@@ -802,16 +802,11 @@ public final class Table implements AutoCloseable {
   }
 
   public TableOperation onColumns(int... indices) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
     int[] operationIndicesArray = copyAndValidate(indices);
     return new TableOperation(this, operationIndicesArray);
-*/
   }
 
   private int[] copyAndValidate(int[] indices) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
     int[] operationIndicesArray = new int[indices.length];
     for (int i = 0; i < indices.length; i++) {
       operationIndicesArray[i] = indices[i];
@@ -819,7 +814,6 @@ public final class Table implements AutoCloseable {
           "operation index is out of range 0 <= " + operationIndicesArray[i] + " < " + columns.length;
     }
     return operationIndicesArray;
-*/
   }
 
   /**
@@ -1046,14 +1040,11 @@ public final class Table implements AutoCloseable {
      * left non-join columns, right non-join columns.
      */
     public Table leftJoin(TableOperation rightJoinIndices) {
-      throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
       try (DevicePrediction prediction = new DevicePrediction(operation.table.getDeviceMemorySize() +
           rightJoinIndices.operation.table.getDeviceMemorySize(), "leftJoin")) {
-        return new Table(gdfLeftJoin(operation.table.nativeHandle, operation.indices,
+        return new Table(Table.leftJoin(operation.table.nativeHandle, operation.indices,
             rightJoinIndices.operation.table.nativeHandle, rightJoinIndices.operation.indices));
       }
-*/
     }
 
     /**
@@ -1067,13 +1058,10 @@ public final class Table implements AutoCloseable {
      * left non-join columns, right non-join columns.
      */
     public Table innerJoin(TableOperation rightJoinIndices) {
-      throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
       try (DevicePrediction prediction = new DevicePrediction(operation.table.getDeviceMemorySize() +
           rightJoinIndices.operation.table.getDeviceMemorySize(), "innerJoin")) {
-        return new Table(gdfInnerJoin(operation.table.nativeHandle, operation.indices,
+        return new Table(Table.innerJoin(operation.table.nativeHandle, operation.indices,
             rightJoinIndices.operation.table.nativeHandle, rightJoinIndices.operation.indices));
-*/
       }
     }
 
@@ -1094,8 +1082,8 @@ public final class Table implements AutoCloseable {
             partitionOffsets.length,
             partitionOffsets)), partitionOffsets);
       }
+ */
     }
-*/
   }
 
   /////////////////////////////////////////////////////////////////////////////
