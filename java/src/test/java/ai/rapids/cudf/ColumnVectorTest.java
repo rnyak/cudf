@@ -945,4 +945,30 @@ public class ColumnVectorTest extends CudfTestBase {
       assertColumnsAreEqual(expectedS, s);
     }
   }
+
+  @Test
+  void testContainsScalar() {
+    try (ColumnVector columnVector = ColumnVector.fromInts(1, 43, 42, 11, 2);
+    Scalar s0 = Scalar.fromInt(3);
+    Scalar s1 = Scalar.fromInt(43)) {
+      assertFalse(columnVector.contains(s0));
+      assertTrue(columnVector.contains(s1));
+    }
+  }
+
+  @Test
+  void testContainsVector() {
+    try (ColumnVector columnVector = ColumnVector.fromBoxedInts(1, null, 43, 42, 11, 2);
+         ColumnVector cv0 = ColumnVector.fromBoxedInts(1, 3, null, 11);
+         ColumnVector expected = ColumnVector.fromBoxedBooleans(true, null, false, false, true, false);
+         ColumnVector result = columnVector.contains(cv0)) {
+      assertColumnsAreEqual(expected, result);
+    }
+    try (ColumnVector columnVector = ColumnVector.fromStrings("1", "43", "42", "11", "2");
+         ColumnVector cv0 = ColumnVector.fromStrings("1", "3", "11");
+         ColumnVector expected = ColumnVector.fromBoxedBooleans(true, false, false, true, false);
+         ColumnVector result = columnVector.contains(cv0)) {
+      assertColumnsAreEqual(expected, result);
+    }
+  }
 }
