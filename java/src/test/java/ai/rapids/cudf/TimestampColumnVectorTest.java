@@ -239,12 +239,12 @@ public class TimestampColumnVectorTest extends CudfTestBase {
 
   @Test
   public void testCastToTimestamp() {
-    try (ColumnVector date64ColumnVector = ColumnVector.timestampMilliSecondsFromLongs(TIMES_MS);
-         ColumnVector timestampColumnVector = applyAndClose(date64ColumnVector, cv -> cv.asTimestampSeconds())) {
-      timestampColumnVector.ensureOnHost();
-      assertEquals(-131968728L, timestampColumnVector.getLong(0));
-      assertEquals(1530705600L, timestampColumnVector.getLong(1));
-      assertEquals(1674631932L, timestampColumnVector.getLong(2));
+    try (ColumnVector timestampMillis = ColumnVector.timestampMilliSecondsFromLongs(TIMES_MS);
+         ColumnVector timestampSeconds = timestampMillis.asTimestampSeconds()) {
+      timestampSeconds.ensureOnHost();
+      assertEquals(-131968728L, timestampSeconds.getLong(0));
+      assertEquals(1530705600L, timestampSeconds.getLong(1));
+      assertEquals(1674631932L, timestampSeconds.getLong(2));
     }
   }
 
