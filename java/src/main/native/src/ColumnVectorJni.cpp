@@ -19,6 +19,7 @@
 #include <cudf/column/column_view.hpp>
 #include <cudf/datetime.hpp>
 #include <cudf/filling.hpp>
+#include <cudf/quantiles.hpp>
 #include <cudf/replace.hpp>
 #include <cudf/rolling.hpp>
 #include <cudf/search.hpp>
@@ -29,7 +30,6 @@
 #include <cudf/unary.hpp>
 
 #include "cudf/legacy/copying.hpp"
-#include "cudf/legacy/quantiles.hpp"
 #include "cudf/legacy/replace.hpp"
 
 #include "jni_utils.hpp"
@@ -354,37 +354,24 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_replaceNulls(JNIEnv *en
   CATCH_STD(env, 0);
 }
 
-JNIEXPORT jobject JNICALL Java_ai_rapids_cudf_ColumnVector_exactQuantile(JNIEnv *env, jclass clazz,
+JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_quantile(JNIEnv *env, jclass clazz,
                                                                          jlong input_column,
                                                                          jint quantile_method,
                                                                          jdouble quantile) {
   JNI_NULL_CHECK(env, input_column, "native handle is null", 0);
   try {
-    gdf_column *n_input_column = reinterpret_cast<gdf_column *>(input_column);
-    cudf::interpolation n_quantile_method = static_cast<cudf::interpolation>(quantile_method);
-    gdf_context ctxt{0, GDF_SORT, 0, 0};
-    gdf_scalar result{};
-    JNI_GDF_TRY(env, NULL,
-                cudf::quantile_exact(n_input_column, n_quantile_method, quantile, &result, &ctxt));
-    //return cudf::jni::jscalar_from_scalar(env, result, n_input_column->dtype_info.time_unit);
-    throw std::logic_error("BAD IMPLEMENTATION");
-  }
-  CATCH_STD(env, NULL);
-}
+    cudf::column_view *n_input_column = reinterpret_cast<cudf::column_view *>(input_column);
+    cudf::experimental::interpolation n_quantile_method =
+        static_cast<cudf::experimental::interpolation>(quantile_method);
+    std::vector<cudf::column_view> views(1, *n_input_column);
 
-JNIEXPORT jobject JNICALL Java_ai_rapids_cudf_ColumnVector_approxQuantile(JNIEnv *env, jclass clazz,
-                                                                          jlong input_column,
-                                                                          jdouble quantile) {
-  JNI_NULL_CHECK(env, input_column, "native handle is null", 0);
-  try {
-    gdf_column *n_input_column = reinterpret_cast<gdf_column *>(input_column);
-    gdf_context ctxt{0, GDF_SORT, 0, 0};
-    gdf_scalar result{};
-    JNI_GDF_TRY(env, NULL, cudf::quantile_approx(n_input_column, quantile, &result, &ctxt));
-    //return cudf::jni::jscalar_from_scalar(env, result, n_input_column->dtype_info.time_unit);
-    throw std::logic_error("BAD IMPLEMENTATION");
+    // The new API is a table level API. We don't really have many use cases for a table level
+    // API so for now lets keep it column level
+    std::vector<std::unique_ptr<cudf::scalar>> result =
+        cudf::experimental::quantiles(cudf::table_view(views), quantile, n_quantile_method);
+    return reinterpret_cast<jlong>(result[0].release());
   }
-  CATCH_STD(env, NULL);
+  CATCH_STD(env, 0);
 }
 
 JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_rollingWindow(

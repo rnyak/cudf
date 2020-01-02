@@ -121,11 +121,6 @@ public final class Scalar implements AutoCloseable, BinaryOperable {
     return new Scalar(DType.STRING, makeStringScalar(value.getBytes(StandardCharsets.UTF_8), true));
   }
 
-  // called from native code to build scalar objects
-  private static Scalar fromNative(int dtypeNativeId, long scalarHandle) {
-    return new Scalar(DType.fromNative(dtypeNativeId), scalarHandle);
-  }
-
   private static native void closeScalar(long scalarHandle);
   private static native boolean isScalarValid(long scalarHandle);
   private static native byte getByte(long scalarHandle);
@@ -147,7 +142,7 @@ public final class Scalar implements AutoCloseable, BinaryOperable {
   private static native long makeTimestampTimeScalar(int dtypeNativeId, long value, boolean isValid);
 
 
-  private Scalar(DType type, long scalarHandle) {
+  Scalar(DType type, long scalarHandle) {
     this.type = type;
     this.offHeap = new OffHeapState(scalarHandle);
     incRefCount();
