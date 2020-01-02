@@ -474,7 +474,6 @@ public class ColumnVectorTest extends CudfTestBase {
 
   @Test
   void testQuantilesOnIntegerInput() {
-    int[] approxExpected = {-1, 1, 1, 2, 9};
     double[][] exactExpected = {
         {-1.0,   1.0,   1.0,   2.5,   9.0},  // LINEAR
         {  -1,     1,     1,     2,     9},  // LOWER
@@ -485,12 +484,10 @@ public class ColumnVectorTest extends CudfTestBase {
     try (ColumnVector cv = ColumnVector.fromBoxedInts(7, 0, 3, 4, 2, 1, -1, 1, 6, 9)) {
       // sorted: -1, 0, 1, 1, 2, 3, 4, 6, 7, 9
       for (int j = 0 ; j < quantiles.length ; j++) {
-        Scalar result = cv.approxQuantile(quantiles[j]);
-        assertEquals(approxExpected[j], result.getInt());
-
         for (int i = 0 ; i < methods.length ; i++) {
-          result = cv.exactQuantile(methods[i], quantiles[j]);
-          assertEquals(exactExpected[i][j], result.getDouble(), DELTA);
+          try(Scalar result = cv.quantile(methods[i], quantiles[j])) {
+            assertEquals(exactExpected[i][j], result.getDouble(), DELTA);
+          }
         }
       }
     }
@@ -498,7 +495,6 @@ public class ColumnVectorTest extends CudfTestBase {
 
   @Test
   void testQuantilesOnDoubleInput() {
-    double[] approxExpected = {-1.01, 0.8, 0.8, 2.13, 6.8};
     double[][] exactExpected = {
         {-1.01, 0.8, 0.9984, 2.13, 6.8},  // LINEAR
         {-1.01, 0.8,    0.8, 2.13, 6.8},  // LOWER
@@ -509,12 +505,10 @@ public class ColumnVectorTest extends CudfTestBase {
     try (ColumnVector cv = ColumnVector.fromBoxedDoubles(6.8, 0.15, 3.4, 4.17, 2.13, 1.11, -1.01, 0.8, 5.7)) {
       // sorted: -1.01, 0.15, 0.8, 1.11, 2.13, 3.4, 4.17, 5.7, 6.8
       for (int j = 0; j < quantiles.length ; j++) {
-        Scalar result = cv.approxQuantile(quantiles[j]);
-        assertEquals(approxExpected[j], result.getDouble(), DELTA);
-
         for (int i = 0 ; i < methods.length ; i++) {
-          result = cv.exactQuantile(methods[i], quantiles[j]);
-          assertEquals(exactExpected[i][j], result.getDouble(), DELTA);
+          try (Scalar result = cv.quantile(methods[i], quantiles[j])) {
+            assertEquals(exactExpected[i][j], result.getDouble(), DELTA);
+          }
         }
       }
     }

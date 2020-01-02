@@ -1767,9 +1767,7 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
     }
   }
 
-//  private native Scalar exactQuantile(long cudfColumnHandle, int quantileMethod, double quantile) throws CudfException;
-
-//  private native Scalar approxQuantile(long cudfColumnHandle, double quantile) throws CudfException;
+  private native long quantile(long cudfColumnHandle, int quantileMethod, double quantile) throws CudfException;
 
   private static native long rollingWindow(long viewHandle, int min_periods, int agg_type,
                                            int preceding, int following,
@@ -2274,19 +2272,8 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    * @param quantile the quantile value [0,1]
    * @return the quantile as double. The type can be changed in future
    */
-  public Scalar exactQuantile(QuantileMethod method, double quantile) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-//    return exactQuantile(this.getNativeCudfColumnAddress(), method.nativeId, quantile);
-  }
-
-  /**
-   * Calculate the approximate quantile of this ColumnVector
-   * @param quantile the quantile value [0,1]
-   * @return the quantile, with the same type as this object
-   */
-  public Scalar approxQuantile(double quantile) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-//    return approxQuantile(this.getNativeCudfColumnAddress(), quantile);
+  public Scalar quantile(QuantileMethod method, double quantile) {
+    return new Scalar(type, quantile(getNativeView(), method.nativeId, quantile));
   }
 
   /**
