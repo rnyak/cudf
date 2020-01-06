@@ -24,6 +24,7 @@
 #include <nvstrings/NVStrings.h>
 #include <rmm/rmm.h>
 
+#include <cudf/copying.hpp>
 #include <cudf/scalar/scalar.hpp>
 
 #include "cudf/cudf.h"
@@ -491,6 +492,10 @@ public:
     }
     env->SetObjectArrayElement(orig, index, val);
     check_java_exception(env);
+  }
+
+  jobjectArray wrapped() {
+    return orig;
   }
 };
 
@@ -960,6 +965,11 @@ inline void jni_cudf_check(JNIEnv *const env, gdf_error gdf_status) {
     }
   }
 }
+
+jobject contiguous_table_from(JNIEnv* env, cudf::experimental::contiguous_split_result & split);
+
+native_jobjectArray<jobject> contiguous_table_array(JNIEnv* env, jsize length);
+
 } // namespace jni
 } // namespace cudf
 

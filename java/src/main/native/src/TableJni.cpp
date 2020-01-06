@@ -22,7 +22,6 @@
 #include <cudf/table/table.hpp>
 #include <cudf/stream_compaction.hpp>
 #include <cudf/io/functions.hpp>
-#include <cudf/copying.hpp>
 #include <cudf/join.hpp>
 
 #include "cudf/utilities/legacy/nvcategory_util.hpp"
@@ -643,6 +642,30 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_Table_bound(JNIEnv *env, jclass,
     return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);
+}
+
+JNIEXPORT jobjectArray JNICALL Java_ai_rapids_cudf_Table_contiguousSplit(JNIEnv *env, jclass clazz,
+                                                             jlong input_table,
+                                                             jintArray split_indices) {
+  JNI_NULL_CHECK(env, input_table, "native handle is null", 0);
+  JNI_NULL_CHECK(env, split_indices, "split indices are null", 0);
+
+  try {
+    cudf::table_view *n_table = reinterpret_cast<cudf::table_view *>(input_table);
+    cudf::jni::native_jintArray n_split_indices(env, split_indices);
+
+    std::vector<cudf::size_type> indices(n_split_indices.data(), n_split_indices.data() + n_split_indices.size());
+
+    std::vector<cudf::experimental::contiguous_split_result> result = 
+        cudf::experimental::contiguous_split(*n_table, indices);
+    cudf::jni::native_jobjectArray<jobject> n_result = 
+        cudf::jni::contiguous_table_array(env, result.size());
+    for (int i = 0; i < result.size(); i++) {
+      n_result.set(i, cudf::jni::contiguous_table_from(env, result[i]));
+    }
+    return n_result.wrapped();
+  }
+  CATCH_STD(env, NULL);
 }
 
 } // extern "C"

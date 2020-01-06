@@ -18,6 +18,7 @@
 #include <cudf/column/column.hpp>
 #include <cudf/column/column_factories.hpp>
 #include <cudf/column/column_view.hpp>
+#include <cudf/copying.hpp>
 #include <cudf/datetime.hpp>
 #include <cudf/filling.hpp>
 #include <cudf/quantiles.hpp>
@@ -400,20 +401,31 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_rollingWindow(
   CATCH_STD(env, 0);
 }
 
-JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_ColumnVector_cudfSlice(JNIEnv *env, jclass clazz,
+JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_ColumnVector_slice(JNIEnv *env, jclass clazz,
                                                                         jlong input_column,
-                                                                        jlong slice_indices) {
+                                                                        jintArray slice_indices) {
   JNI_NULL_CHECK(env, input_column, "native handle is null", 0);
   JNI_NULL_CHECK(env, slice_indices, "slice indices are null", 0);
 
-  gdf_column *n_column = reinterpret_cast<gdf_column *>(input_column);
-  gdf_column *n_slice_indices = reinterpret_cast<gdf_column *>(slice_indices);
-
   try {
-    std::vector<gdf_column *> result = cudf::slice(
-        *n_column, static_cast<cudf::size_type *>(n_slice_indices->data), n_slice_indices->size);
-    cudf::jni::native_jlongArray n_result(env, reinterpret_cast<jlong *>(result.data()),
-                                          result.size());
+    cudf::column_view *n_column = reinterpret_cast<cudf::column_view *>(input_column);
+    cudf::jni::native_jintArray n_slice_indices(env, slice_indices);
+
+    std::vector<cudf::size_type> indices(n_slice_indices.size());
+    for (int i = 0; i < n_slice_indices.size(); i++) {
+      indices[i] = n_slice_indices[i];
+    }
+
+    std::vector<cudf::column_view> result = cudf::experimental::slice(*n_column, indices);
+    cudf::jni::native_jlongArray n_result(env, result.size());
+    std::vector<std::unique_ptr<cudf::column>> column_result(result.size());
+    for (int i = 0; i < result.size(); i++) {
+      column_result[i].reset(new cudf::column(result[i]));
+      n_result[i] = reinterpret_cast<jlong>(column_result[i].get());
+    }
+    for (int i = 0; i < result.size(); i++) {
+      column_result[i].release();
+    }
     return n_result.get_jArray();
   }
   CATCH_STD(env, NULL);
@@ -421,18 +433,29 @@ JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_ColumnVector_cudfSlice(JNIEnv *
 
 JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_ColumnVector_split(JNIEnv *env, jclass clazz,
                                                                     jlong input_column,
-                                                                    jlong slice_indices) {
+                                                                    jintArray split_indices) {
   JNI_NULL_CHECK(env, input_column, "native handle is null", 0);
-  JNI_NULL_CHECK(env, slice_indices, "slice indices are null", 0);
-
-  gdf_column *n_column = reinterpret_cast<gdf_column *>(input_column);
-  gdf_column *n_slice_indices = reinterpret_cast<gdf_column *>(slice_indices);
+  JNI_NULL_CHECK(env, split_indices, "split indices are null", 0);
 
   try {
-    std::vector<gdf_column *> result = cudf::split(
-        *n_column, static_cast<cudf::size_type *>(n_slice_indices->data), n_slice_indices->size);
-    cudf::jni::native_jlongArray n_result(env, reinterpret_cast<jlong *>(result.data()),
-                                          result.size());
+    cudf::column_view *n_column = reinterpret_cast<cudf::column_view *>(input_column);
+    cudf::jni::native_jintArray n_split_indices(env, split_indices);
+
+    std::vector<cudf::size_type> indices(n_split_indices.size());
+    for (int i = 0; i < n_split_indices.size(); i++) {
+      indices[i] = n_split_indices[i];
+    }
+
+    std::vector<cudf::column_view> result = cudf::experimental::split(*n_column, indices);
+    cudf::jni::native_jlongArray n_result(env, result.size());
+    std::vector<std::unique_ptr<cudf::column>> column_result(result.size());
+    for (int i = 0; i < result.size(); i++) {
+      column_result[i].reset(new cudf::column(result[i]));
+      n_result[i] = reinterpret_cast<jlong>(column_result[i].get());
+    }
+    for (int i = 0; i < result.size(); i++) {
+      column_result[i].release();
+    }
     return n_result.get_jArray();
   }
   CATCH_STD(env, NULL);

@@ -52,8 +52,36 @@ public class DeviceMemoryBuffer extends BaseDeviceMemoryBuffer {
     }
   }
 
-  protected DeviceMemoryBuffer(long address, long lengthInBytes, MemoryBufferCleaner cleaner) {
-    super(address, lengthInBytes, cleaner);
+  private static final class RmmDeviceBufferCleaner extends MemoryBufferCleaner {
+    private long rmmBufferAddress;
+
+    RmmDeviceBufferCleaner(long rmmBufferAddress) {
+      this.rmmBufferAddress = rmmBufferAddress;
+    }
+
+    @Override
+    protected boolean cleanImpl(boolean logErrorIfNotClean) {
+      boolean neededCleanup = false;
+      if (rmmBufferAddress != 0) {
+        Rmm.freeDeviceBuffer(rmmBufferAddress);
+        rmmBufferAddress = 0;
+        neededCleanup = true;
+      }
+      if (neededCleanup && logErrorIfNotClean) {
+        log.error("WE LEAKED A DEVICE BUFFER!!!!");
+        logRefCountDebug("Leaked device buffer");
+      }
+      return neededCleanup;
+    }
+  }
+
+  // Static factory method to make this a little simpler from JNI
+  static DeviceMemoryBuffer fromRmm(long address, long lengthInBytes, long rmmBufferAddress) {
+    return new DeviceMemoryBuffer(address, lengthInBytes, rmmBufferAddress);
+  }
+
+  DeviceMemoryBuffer(long address, long lengthInBytes, long rmmBufferAddress) {
+    super(address, lengthInBytes, new RmmDeviceBufferCleaner(rmmBufferAddress));
   }
 
   DeviceMemoryBuffer(long address, long lengthInBytes) {
@@ -86,5 +114,20 @@ public class DeviceMemoryBuffer extends BaseDeviceMemoryBuffer {
     refCount++;
     cleaner.addRef();
     return new DeviceMemoryBuffer(getAddress() + offset, len, this);
+  }
+
+  /**
+   * Convert a view that is a subset of this Buffer by slicing this.
+   * @param view the view to use as a reference.
+   * @return the sliced buffer.
+   */
+  final BaseDeviceMemoryBuffer sliceFrom(DeviceMemoryBufferView view) {
+    if (view == null) {
+      return null;
+    }
+    addressOutOfBoundsCheck(view.address, view.length, "sliceFrom");
+    refCount++;
+    cleaner.addRef();
+    return new DeviceMemoryBuffer(view.address, view.length, this);
   }
 }

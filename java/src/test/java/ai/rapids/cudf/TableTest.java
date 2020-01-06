@@ -979,6 +979,51 @@ public class TableTest extends CudfTestBase {
   }
 
   @Test
+  void testContiguousSplit() {
+    ContiguousTable[] splits = null;
+    try (Table t1 = new Table.TestBuilder()
+        .column(10, 12, 14, 16, 18, 20, 22, 24, null, 28)
+        .column(50, 52, 54, 56, 58, 60, 62, 64, 66, null)
+        .build()) {
+      splits = t1.contiguousSplit(2, 5, 9);
+      assertEquals(4, splits.length);
+      assertEquals(2, splits[0].getTable().getRowCount());
+      assertEquals(3, splits[1].getTable().getRowCount());
+      assertEquals(4, splits[2].getTable().getRowCount());
+      assertEquals(1, splits[3].getTable().getRowCount());
+    } finally {
+      if (splits != null) {
+        for (int i = 0; i < splits.length; i++) {
+          splits[i].close();
+        }
+      }
+    }
+  }
+
+  @Test
+  void testContiguousSplitWithStrings() {
+    ContiguousTable[] splits = null;
+    try (Table t1 = new Table.TestBuilder()
+        .column(10, 12, 14, 16, 18, 20, 22, 24, null, 28)
+        .column(50, 52, 54, 56, 58, 60, 62, 64, 66, null)
+        .column("A", "B", "C", "D", "E", "F", "G", "H", "I", "J")
+        .build()) {
+      splits = t1.contiguousSplit(2, 5, 9);
+      assertEquals(4, splits.length);
+      assertEquals(2, splits[0].getTable().getRowCount());
+      assertEquals(3, splits[1].getTable().getRowCount());
+      assertEquals(4, splits[2].getTable().getRowCount());
+      assertEquals(1, splits[3].getTable().getRowCount());
+    } finally {
+      if (splits != null) {
+        for (int i = 0; i < splits.length; i++) {
+          splits[i].close();
+        }
+      }
+    }
+  }
+
+  @Test
   void testMurmur3BasedPartition() {
     fail();
 /*

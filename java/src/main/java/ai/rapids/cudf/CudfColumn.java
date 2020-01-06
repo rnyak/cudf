@@ -40,6 +40,18 @@ final class CudfColumn implements AutoCloseable {
   }
 
   /**
+   * Make a column form an existing cudf::column_view * and a buffer that holds the data.
+   */
+  public CudfColumn(long viewHandle, DeviceMemoryBuffer contiguousBuffer) {
+    assert viewHandle != 0;
+    this.viewHandle = viewHandle;
+
+    data = contiguousBuffer.sliceFrom(getNativeDataPointer());
+    valid = contiguousBuffer.sliceFrom(getNativeValidPointer());
+    offsets = contiguousBuffer.sliceFrom(getNativeOffsetsPointer());
+  }
+
+  /**
    * Create an empty column
    */
   public CudfColumn(DType dtype) {
