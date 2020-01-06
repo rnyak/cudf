@@ -170,7 +170,9 @@ public final class Table implements AutoCloseable {
   private static native long bound(long inputTable, long valueTable,
                                    boolean[] descFlags, boolean[] areNullsSmallest, boolean isUpperBound) throws CudfException;
 
-  private static native void gdfWriteORC(int compressionType, String outputFileName, long buffer, long bufferLength, long tableToWrite) throws CudfException;
+  private static native void writeORC(int compressionType, String[] colNames, String[] metadataKeys,
+                                      String[] metadataValues, String outputFileName, long buffer,
+                                      long bufferLength, long tableToWrite) throws CudfException;
 
   /**
    * Ugly long function to read CSV.  This is a long function to avoid the overhead of reaching
@@ -567,20 +569,10 @@ public final class Table implements AutoCloseable {
    * @param outputFile file to write the table to
    */
   public void writeParquet(ParquetWriterOptions options, File outputFile) {
-    List<String> columnNames = options.getColumnNames();
-    Map<String, String> metadata = options.getMetadata();
-    int metadataSize = metadata.size();
-    String[] metadataKeys = new String[metadataSize];
-    String[] metadataValues = new String[metadataSize];
-    int i = 0;
-    for (Map.Entry<String, String> entry : metadata.entrySet()) {
-      metadataKeys[i] = entry.getKey();
-      metadataValues[i++] = entry.getValue();
-    }
     writeParquet(this.nativeHandle,
-        columnNames.toArray(new String[columnNames.size()]),
-        metadataKeys,
-        metadataValues,
+        options.getColumnNames(),
+        options.getMetadataKeys(),
+        options.getMetadataValues(),
         options.getCompressionType().nativeId,
         options.getStatisticsFrequency().nativeId,
         outputFile.getAbsolutePath());
@@ -592,8 +584,7 @@ public final class Table implements AutoCloseable {
    * @param outputFile - File to write the table to
    */
   public void writeORC(File outputFile) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-//    gdfWriteORC(ORCWriterOptions.DEFAULT.getCompressionType().nativeId, outputFile.getAbsolutePath(), 0, 0, this.nativeHandle);
+    writeORC(ORCWriterOptions.DEFAULT, outputFile);
   }
 
   /**
@@ -602,8 +593,9 @@ public final class Table implements AutoCloseable {
    * @param outputFile - File to write the table to
    */
   public void writeORC(ORCWriterOptions options, File outputFile) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-//    gdfWriteORC(options.getCompressionType().nativeId, outputFile.getAbsolutePath(), 0, 0, this.nativeHandle);
+    writeORC(options.getCompressionType().nativeId, options.getColumnNames(),
+        options.getMetadataKeys(), options.getMetadataValues(), outputFile.getAbsolutePath(),
+        0, 0, this.nativeHandle);
   }
 
   /**

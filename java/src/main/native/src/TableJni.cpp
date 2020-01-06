@@ -363,42 +363,48 @@ JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_readORC(
   CATCH_STD(env, NULL);
 }
 
-JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_Table_gdfWriteORC(JNIEnv *env, jclass,
-                                                              jint compression_type,
+JNIEXPORT void JNICALL Java_ai_rapids_cudf_Table_writeORC(JNIEnv *env, jclass,
+                                                              jint j_compression_type,
+                                                              jobjectArray j_col_names,
+                                                              jobjectArray j_metadata_keys,
+                                                              jobjectArray j_metadata_values,
                                                               jstring outputfilepath, jlong buffer,
-                                                              jlong buffer_length, jlong table) {
+                                                              jlong buffer_length, jlong j_table_view) {
   bool write_buffer = true;
   if (buffer == 0) {
-    JNI_NULL_CHECK(env, outputfilepath, "output file or buffer must be supplied", 0);
+    JNI_NULL_CHECK(env, outputfilepath, "output file or buffer must be supplied", );
     write_buffer = false;
   } else if (outputfilepath != NULL) {
     JNI_THROW_NEW(env, "java/lang/IllegalArgumentException",
-                  "cannot pass in both a buffer and an outputfilepath", 0);
+                  "cannot pass in both a buffer and an outputfilepath", );
   } else if (buffer_length <= 0) {
-    JNI_THROW_NEW(env, "java/lang/IllegalArgumentException", "An empty buffer is not supported", 0);
+    JNI_THROW_NEW(env, "java/lang/IllegalArgumentException", "An empty buffer is not supported", );
   }
+  JNI_NULL_CHECK(env, j_col_names, "null columns", );
+  JNI_NULL_CHECK(env, j_metadata_keys, "null metadata keys", );
+  JNI_NULL_CHECK(env, j_metadata_values, "null metadata values", );
 
   try {
     cudf::jni::native_jstring filename(env, outputfilepath);
-    namespace orc = cudf::io::orc;
-    orc::compression_type n_compressionType = static_cast<orc::compression_type>(compression_type);
+    cudf::jni::native_jstringArray meta_keys(env, j_metadata_keys);
+    cudf::jni::native_jstringArray meta_values(env, j_metadata_values);
+    cudf::jni::native_jstringArray col_names(env, j_col_names);
+    namespace orc = cudf::experimental::io;
     if (write_buffer) {
       JNI_THROW_NEW(env, "java/lang/UnsupportedOperationException",
-                        "buffers are not supported", 0);
+                        "buffers are not supported", );
     } else {
-      cudf::sink_info info(filename.get());
-      cudf::orc_write_arg args(info);
-      auto writer = [&]() {
-
-        orc::writer_options options(n_compressionType);
-        return std::make_unique<orc::writer>(args.sink.filepath, options);
-      }();
-
-      args.table = *reinterpret_cast<cudf::table *>(table);
-      writer->write_all(args.table);
+      orc::sink_info info(filename.get());
+      orc::table_metadata metadata{col_names.as_cpp_vector()};
+      for (size_t i = 0; i < meta_keys.size(); ++i) {
+        metadata.user_data[meta_keys[i].get()] = meta_values[i].get();
+      }
+      orc::write_orc_args args(info, *reinterpret_cast<cudf::table_view*>(j_table_view), &metadata,
+                                                static_cast<orc::compression_type>(j_compression_type));
+      orc::write_orc(args);
     }
   }
-  CATCH_STD(env, 0);
+  CATCH_STD(env, );
 }
 
 JNIEXPORT jlongArray JNICALL Java_ai_rapids_cudf_Table_leftJoin(

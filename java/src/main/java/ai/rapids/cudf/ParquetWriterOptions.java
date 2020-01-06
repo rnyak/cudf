@@ -18,15 +18,10 @@
 
 package ai.rapids.cudf;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  * Settings for writing Parquet files.
  */
-public class ParquetWriterOptions {
+public class ParquetWriterOptions extends WriterOptions {
   public enum StatisticsFrequency {
     /** Do not generate statistics */
     NONE(0),
@@ -44,36 +39,8 @@ public class ParquetWriterOptions {
     }
   }
 
-  public static class Builder {
-    private ArrayList<String> columnNames = new ArrayList<>();
-    private Map<String, String> metadata = new HashMap<>();
-    private CompressionType compression = CompressionType.AUTO;
+  public static class Builder extends WriterBuilder<Builder> {
     private StatisticsFrequency statsGranularity = StatisticsFrequency.ROWGROUP;
-
-    public Builder withColumnName(String columnName) {
-      columnNames.add(columnName);
-      return this;
-    }
-
-    public Builder withColumnNames(List<String> names) {
-      columnNames.addAll(names);
-      return this;
-    }
-
-    public Builder withMetadata(String key, String value) {
-      this.metadata.put(key, value);
-      return this;
-    }
-
-    public Builder withMetadata(Map<String, String> metadata) {
-      this.metadata.putAll(metadata);
-      return this;
-    }
-
-    public Builder withCompressionType(CompressionType compression) {
-      this.compression = compression;
-      return this;
-    }
 
     public Builder withStatisticsFrequency(StatisticsFrequency statsGranularity) {
       this.statsGranularity = statsGranularity;
@@ -88,31 +55,14 @@ public class ParquetWriterOptions {
   public static final ParquetWriterOptions DEFAULT = new ParquetWriterOptions(new Builder());
 
   public static Builder builder() {
-      return new Builder();
+    return new Builder();
   }
 
-  private final ArrayList<String> columnNames;
-  private final Map<String, String> metadata;
-  private final CompressionType compression;
   private final StatisticsFrequency statsGranularity;
 
   private ParquetWriterOptions(Builder builder) {
-    this.columnNames = builder.columnNames;
-    this.metadata = builder.metadata;
-    this.compression = builder.compression;
+    super(builder);
     this.statsGranularity = builder.statsGranularity;
-  }
-
-  public List<String> getColumnNames() {
-    return columnNames;
-  }
-
-  public Map<String, String> getMetadata() {
-    return metadata;
-  }
-
-  public CompressionType getCompressionType() {
-    return compression;
   }
 
   public StatisticsFrequency getStatisticsFrequency() {
