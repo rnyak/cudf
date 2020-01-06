@@ -146,6 +146,31 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
   }
 
   /**
+   * This is a very special constructor that should only ever be called by
+   * fromViewWithContiguousAllocation.  It takes a cudf::column_view * instead of a cudf::column *.
+   * But to maintain memory ownership properly we need to slice the memory in the view off from
+   * a separate buffer that actually owns the memory allocation.
+   * @param viewAddress the address of the cudf::column_view
+   * @param contiguousBuffer the buffer that this is based off of.
+   */
+  private ColumnVector(long viewAddress, DeviceMemoryBuffer contiguousBuffer) {
+    MemoryCleaner.register(this, offHeap);
+    offHeap.internalId = internalId;
+    offHeap.setHostData(null);
+    offHeap.cudfColumnHandle = new CudfColumn(viewAddress, contiguousBuffer);
+    this.type = offHeap.cudfColumnHandle.getNativeType();
+    this.rows = offHeap.cudfColumnHandle.getNativeRowCount();
+    // TODO we may want to ask for the null count anyways...
+    this.nullCount = Optional.empty();
+    this.refCount = 0;
+    incRefCountInternal(true);
+  }
+
+  static ColumnVector fromViewWithContiguousAllocation(long columnViewAddress, DeviceMemoryBuffer buffer) {
+    return new ColumnVector(columnViewAddress, buffer);
+  }
+
+  /**
    * This is a really ugly API, but it is possible that the lifecycle of a column of
    * data may not have a clear lifecycle thanks to java and GC. This API informs the leak
    * tracking code that this is expected for this column, and big scary warnings should
@@ -1003,44 +1028,6 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
   private static native long binaryOpVS(long lhs, long rhs, int op, int dtype);
 
   /**
-   * Slices a column (including null values) into a set of columns
-   * according to a set of indices. The caller owns the ColumnVectors and is responsible
-   * closing them
-   *
-   * The "slice" function divides part of the input column into multiple intervals
-   * of rows using the indices values and it stores the intervals into the output
-   * columns. Regarding the interval of indices, a pair of values are taken from
-   * the indices array in a consecutive manner. The pair of indices are left-closed
-   * and right-open.
-   *
-   * The pairs of indices in the array are required to comply with the following
-   * conditions:
-   * a, b belongs to Range[0, input column size]
-   * a <= b, where the position of a is less or equal to the position of b.
-   *
-   * Exceptional cases for the indices array are:
-   * When the values in the pair are equal, the function returns an empty column.
-   * When the values in the pair are 'strictly decreasing', the outcome is
-   * undefined.
-   * When any of the values in the pair don't belong to the range[0, input column
-   * size), the outcome is undefined.
-   * When the indices array is empty, an empty vector of columns is returned.
-   *
-   * The caller owns the output ColumnVectors and is responsible for closing them.
-   *
-   * @param indices
-   * @return A new ColumnVector array with slices from the original ColumnVector
-   */
-  public ColumnVector[] slice(int... indices) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
-    try (ColumnVector cv = ColumnVector.fromInts(indices)) {
-      return slice(cv);
-    }
-*/
-  }
-
-  /**
    * Find if the `needle` is present in this col
    *
    * example:
@@ -1078,10 +1065,6 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
     return new ColumnVector(containsVector(offHeap.cudfColumnHandle.getViewHandle(), needles.offHeap.cudfColumnHandle.getViewHandle()));
   }
 
-  private static native boolean containsScalar(long columnViewHaystack, long scalarHandle) throws CudfException;
-
-  private static native long containsVector(long columnViewHaystack, long columnViewNeedles) throws CudfException;
-
   /**
    * Slices a column (including null values) into a set of columns
    * according to a set of indices. The caller owns the ColumnVectors and is responsible
@@ -1111,16 +1094,35 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    * @param indices
    * @return A new ColumnVector array with slices from the original ColumnVector
    */
-  public ColumnVector[] slice(ColumnVector indices) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
+  public ColumnVector[] slice(int... indices) {
+    assert getType() != DType.STRING : "Strings are not currently supported for slice";
     try (DevicePrediction prediction = new DevicePrediction(getDeviceMemorySize(), "slice")) {
-      long[] nativeHandles = cudfSlice(this.getNativeCudfColumnAddress(), indices.getNativeCudfColumnAddress());
+      long[] nativeHandles = slice(this.getNativeView(), indices);
       ColumnVector[] columnVectors = new ColumnVector[nativeHandles.length];
-      IntStream.range(0, nativeHandles.length).forEach(i -> columnVectors[i] = new ColumnVector(nativeHandles[i]));
+      for (int i = 0; i < nativeHandles.length; i++) {
+        columnVectors[i] = new ColumnVector(nativeHandles[i]);
+      }
       return columnVectors;
     }
-*/
+  }
+
+  /**
+   * Return a subVector from start inclusive to the end of the vector.
+   * @param start the index to start at.
+   */
+  public ColumnVector subVector(int start) {
+    return subVector(start, (int)rows);
+  }
+
+  /**
+   * Return a subVector.
+   * @param start the index to start at (inclusive).
+   * @param end the index to end at (exclusive).
+   */
+  public ColumnVector subVector(int start, int end) {
+    ColumnVector [] tmp = slice(start, end);
+    assert tmp.length == 1;
+    return tmp[0];
   }
 
   /**
@@ -1167,69 +1169,15 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    * @return A new ColumnVector array with slices from the original ColumnVector
    */
   public ColumnVector[] split(int... indices) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
-    try (ColumnVector cv = ColumnVector.fromInts(indices)) {
-      return split(cv);
-    }
-*/
-  }
-
-  /**
-   * Splits a column (including null values) into a set of columns
-   * according to a set of indices. The caller owns the ColumnVectors and is responsible
-   * closing them.
-   *
-   * The "split" function divides the input column into multiple intervals
-   * of rows using the splits indices values and it stores the intervals into the
-   * output columns. Regarding the interval of indices, a pair of values are taken
-   * from the indices array in a consecutive manner. The pair of indices are
-   * left-closed and right-open.
-   *
-   * The indices array ('splits') is require to be a monotonic non-decreasing set.
-   * The indices in the array are required to comply with the following conditions:
-   * a, b belongs to Range[0, input column size]
-   * a <= b, where the position of a is less or equal to the position of b.
-   *
-   * The split function will take a pair of indices from the indices array
-   * ('splits') in a consecutive manner. For the first pair, the function will
-   * take the value 0 and the first element of the indices array. For the last pair,
-   * the function will take the last element of the indices array and the size of
-   * the input column.
-   *
-   * Exceptional cases for the indices array are:
-   * When the values in the pair are equal, the function return an empty column.
-   * When the values in the pair are 'strictly decreasing', the outcome is
-   * undefined.
-   * When any of the values in the pair don't belong to the range[0, input column
-   * size), the outcome is undefined.
-   * When the indices array is empty, an empty vector of columns is returned.
-   *
-   * The input columns may have different sizes. The number of
-   * columns must be equal to the number of indices in the array plus one.
-   *
-   * Example:
-   * input:   {10, 12, 14, 16, 18, 20, 22, 24, 26, 28}
-   * splits: {2, 5, 9}
-   * output:  {{10, 12}, {14, 16, 18}, {20, 22, 24, 26}, {28}}
-   *
-   * Note that this is very similar to the output from a PartitionedTable.
-   *
-   * @param indices the indexes to split with
-   * @return A new ColumnVector array with slices from the original ColumnVector
-   */
-  public ColumnVector[] split(ColumnVector indices) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
+    assert getType() != DType.STRING : "Strings are not currently supported for split";
     try (DevicePrediction prediction = new DevicePrediction(getDeviceMemorySize(), "split")) {
-      long[] nativeHandles = split(this.getNativeCudfColumnAddress(), indices.getNativeCudfColumnAddress());
+      long[] nativeHandles = split(this.getNativeView(), indices);
       ColumnVector[] columnVectors = new ColumnVector[nativeHandles.length];
       for (int i = 0; i < nativeHandles.length; i++) {
         columnVectors[i] = new ColumnVector(nativeHandles[i]);
       }
       return columnVectors;
     }
-*/
   }
 
   /**
@@ -1706,9 +1654,9 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
 //                                                     int size, int TypeId, int null_count,
 //                                                     int timeUnit) throws CudfException;
 
-//  private native long[] cudfSlice(long nativeHandle, long indices) throws CudfException;
+  private native long[] slice(long nativeHandle, int[] indices) throws CudfException;
 
-//  private native long[] split(long nativeHandle, long indices) throws CudfException;
+  private native long[] split(long nativeHandle, int[] indices) throws CudfException;
 
   private native long findAndReplaceAll(long valuesHandle, long replaceHandle, long myself) throws CudfException;
 
@@ -1815,6 +1763,10 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
   private static native long minute(long viewHandle) throws CudfException;
 
   private static native long second(long viewHandle) throws CudfException;
+
+  private static native boolean containsScalar(long columnViewHaystack, long scalarHandle) throws CudfException;
+
+  private static native long containsVector(long columnViewHaystack, long columnViewNeedles) throws CudfException;
 
   /////////////////////////////////////////////////////////////////////////////
   // HELPER CLASSES

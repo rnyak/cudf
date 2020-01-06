@@ -158,6 +158,8 @@ public final class Table implements AutoCloseable {
   /////////////////////////////////////////////////////////////////////////////
   // NATIVE APIs
   /////////////////////////////////////////////////////////////////////////////
+  
+  private static native ContiguousTable[] contiguousSplit(long inputTable, int[] indices);
 
   private static native long[] gdfPartition(long inputTable,
                                             int[] columnsToHash,
@@ -832,6 +834,28 @@ public final class Table implements AutoCloseable {
     try (DevicePrediction prediction = new DevicePrediction(getDeviceMemorySize(), "filter")) {
       return new Table(filter(nativeHandle, mask.getNativeView()));
     }
+  }
+
+  /**
+   * Split a table at given boundaries, but the result of each split has memory that is laid out
+   * in a contiguous range of memory.  This allows for us to optimize copying the data in a single
+   * operation.
+   *
+   * <code>
+   * Example:
+   * input:   [{10, 12, 14, 16, 18, 20, 22, 24, 26, 28},
+   *           {50, 52, 54, 56, 58, 60, 62, 64, 66, 68}]
+   * splits:  {2, 5, 9}
+   * output:  [{{10, 12}, {14, 16, 18}, {20, 22, 24, 26}, {28}},
+   *           {{50, 52}, {54, 56, 58}, {60, 62, 64, 66}, {68}}]
+   * </code>
+   * @param indices A vector of indices where to make the split
+   * @return The tables split at those points. NOTE: It is the responsibility of the caller to
+   * close the result. Each table and column holds a reference to the original buffer. But both
+   * the buffer and the table must be closed for the memory to be released.
+   */
+  public ContiguousTable[] contiguousSplit(int... indices) {
+    return contiguousSplit(nativeHandle, indices);
   }
 
   /////////////////////////////////////////////////////////////////////////////

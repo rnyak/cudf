@@ -515,7 +515,22 @@ public class ColumnVectorTest extends CudfTestBase {
   }
 
   @Test
-  void testSliceWithArray() {
+  void testSubvector() {
+    try (ColumnVector vec = ColumnVector.fromBoxedInts(1, 2, 3, null, 5);
+         ColumnVector expected = ColumnVector.fromBoxedInts(2, 3, null, 5);
+         ColumnVector found = vec.subVector(1, 5)) {
+      TableTest.assertColumnsAreEqual(expected, found);
+    }
+
+    try (ColumnVector vec = ColumnVector.fromStrings("1", "2", "3", null, "5");
+         ColumnVector expected = ColumnVector.fromStrings("2", "3", null, "5");
+         ColumnVector found = vec.subVector(1, 5)) {
+      TableTest.assertColumnsAreEqual(expected, found);
+    }
+  }
+
+  @Test
+  void testSlice() {
     try(ColumnVector cv = ColumnVector.fromBoxedInts(10, 12, null, null, 18, 20, 22, 24, 26, 28)) {
       Integer[][] expectedSlice = {
           {12, null},
@@ -592,43 +607,6 @@ public class ColumnVectorTest extends CudfTestBase {
   void testWithOddSlices() {
     try (ColumnVector cv = ColumnVector.fromBoxedInts(10, 12, null, null, 18, 20, 22, 24, 26, 28)) {
       assertThrows(CudfException.class, () -> cv.slice(1, 3, 5, 9, 2, 4, 8));
-    }
-  }
-
-  @Test
-  void testSliceWithColumnVector() {
-    try(ColumnVector cv = ColumnVector.fromBoxedInts(10, 12, null, null, 18, 20, 22, 24, 26, 28);
-        ColumnVector indices = ColumnVector.fromInts(1, 3, 5, 9, 2, 4, 8, 8)) {
-      Integer[][] expectedSlice = {
-          {12, null},
-          {20, 22, 24, 26},
-          {null, null},
-          {}};
-
-      final ColumnVector[] slices = cv.slice(indices);
-      try {
-        for (int i = 0; i < slices.length; i++) {
-          final int sliceIndex = i;
-          ColumnVector slice = slices[sliceIndex];
-          slice.ensureOnHost();
-          assertEquals(expectedSlice[sliceIndex].length, slices[sliceIndex].getRowCount());
-          IntStream.range(0, expectedSlice[sliceIndex].length).forEach(rowCount -> {
-            if (expectedSlice[sliceIndex][rowCount] == null) {
-              assertTrue(slices[sliceIndex].isNull(rowCount));
-            } else {
-              assertEquals(expectedSlice[sliceIndex][rowCount],
-                  slices[sliceIndex].getInt(rowCount));
-            }
-          });
-        }
-        assertEquals(4, slices.length);
-      } finally {
-        for (int i = 0 ; i < slices.length ; i++) {
-          if (slices[i] != null) {
-            slices[i].close();
-          }
-        }
-      }
     }
   }
 
