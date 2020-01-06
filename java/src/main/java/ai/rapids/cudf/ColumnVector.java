@@ -973,23 +973,34 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
    */
   @Override
   public ColumnVector binaryOp(BinaryOp op, BinaryOperable rhs, DType outType) {
-    throw new UnsupportedOperationException(STANDARD_CUDF_PORTING_MSG);
-/*
     try (DevicePrediction prediction = new DevicePrediction(predictSizeFor(outType), "binaryOp")) {
       if (rhs instanceof ColumnVector) {
         ColumnVector cvRhs = (ColumnVector) rhs;
         assert rows == cvRhs.getRowCount();
-        return new ColumnVector(Cudf.gdfBinaryOp(this, cvRhs, op, outType));
+        return new ColumnVector(binaryOp(this, cvRhs, op, outType));
       } else if (rhs instanceof Scalar) {
         Scalar sRhs = (Scalar) rhs;
-        return new ColumnVector(Cudf.gdfBinaryOp(this, sRhs, op, outType));
+        return new ColumnVector(binaryOp(this, sRhs, op, outType));
       } else {
         throw new IllegalArgumentException(rhs.getClass() + " is not supported as a binary op" +
             " with ColumnVector");
       }
     }
-*/
   }
+
+  static long binaryOp(ColumnVector lhs, ColumnVector rhs, BinaryOp op, DType outputType) {
+    return binaryOpVV(lhs.getNativeView(), rhs.getNativeView(),
+        op.nativeId, outputType.nativeId);
+  }
+
+  private static native long binaryOpVV(long lhs, long rhs, int op, int dtype);
+
+  static long binaryOp(ColumnVector lhs, Scalar rhs, BinaryOp op, DType outputType) {
+    return binaryOpVS(lhs.getNativeView(), rhs.getScalarHandle(),
+        op.nativeId, outputType.nativeId);
+  }
+
+  private static native long binaryOpVS(long lhs, long rhs, int op, int dtype);
 
   /**
    * Slices a column (including null values) into a set of columns

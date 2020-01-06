@@ -255,19 +255,23 @@ public final class Scalar implements AutoCloseable, BinaryOperable {
 
   @Override
   public ColumnVector binaryOp(BinaryOp op, BinaryOperable rhs, DType outType) {
-    throw new UnsupportedOperationException(ColumnVector.STANDARD_CUDF_PORTING_MSG);
-/*
     if (rhs instanceof ColumnVector) {
       ColumnVector cvRhs = (ColumnVector) rhs;
       try (DevicePrediction prediction = new DevicePrediction(cvRhs.predictSizeFor(outType), "binaryOp")) {
-        return new ColumnVector(Cudf.gdfBinaryOp(this, cvRhs, op, outType));
+        return new ColumnVector(binaryOp(this, cvRhs, op, outType));
       }
     } else {
       throw new IllegalArgumentException(rhs.getClass() + " is not supported as a binary op with " +
           "Scalar");
     }
-*/
   }
+
+  static long binaryOp(Scalar lhs, ColumnVector rhs, BinaryOp op, DType outputType) {
+    return binaryOpSV(lhs.getScalarHandle(), rhs.getNativeView(),
+        op.nativeId, outputType.nativeId);
+  }
+
+  private static native long binaryOpSV(long lhs, long rhs, int op, int dtype);
 
   @Override
   public boolean equals(Object o) {

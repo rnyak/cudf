@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <cudf/binaryop.hpp>
 #include <cudf/scalar/scalar_factories.hpp>
 #include "jni_utils.hpp"
 
@@ -241,6 +242,22 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_Scalar_makeTimestampTimeScalar(JNIEn
       static_cast<ScalarType*>(s.get())->set_value(static_cast<int64_t>(value));
     }
     return reinterpret_cast<jlong>(s.release());
+  }
+  CATCH_STD(env, 0);
+}
+
+JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_Scalar_binaryOpSV(JNIEnv *env, jclass, jlong lhs_ptr,
+                                                               jlong rhs_view, jint int_op,
+                                                               jint out_dtype) {
+  JNI_NULL_CHECK(env, lhs_ptr, "lhs is null", 0);
+  JNI_NULL_CHECK(env, rhs_view, "rhs is null", 0);
+  try {
+    cudf::scalar *lhs = reinterpret_cast<cudf::scalar *>(lhs_ptr);
+    auto rhs = reinterpret_cast<cudf::column_view *>(rhs_view);
+
+    cudf::experimental::binary_operator op = static_cast<cudf::experimental::binary_operator>(int_op);
+    std::unique_ptr<cudf::column> result = cudf::experimental::binary_operation(*lhs, *rhs, op, cudf::data_type(static_cast<cudf::type_id>(out_dtype)));
+    return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);
 }

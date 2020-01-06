@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <cudf/binaryop.hpp>
 #include <cudf/column/column.hpp>
 #include <cudf/column/column_factories.hpp>
 #include <cudf/column/column_view.hpp>
@@ -670,5 +671,37 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_containsVector(JNIEnv *
   }
   CATCH_STD(env, 0);
 
+}
+
+JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_binaryOpVV(JNIEnv *env, jclass, jlong lhs_view,
+                                                               jlong rhs_view, jint int_op,
+                                                               jint out_dtype) {
+  JNI_NULL_CHECK(env, lhs_view, "lhs is null", 0);
+  JNI_NULL_CHECK(env, rhs_view, "rhs is null", 0);
+  try {
+    auto lhs = reinterpret_cast<cudf::column_view *>(lhs_view);
+    auto rhs = reinterpret_cast<cudf::column_view *>(rhs_view);
+
+    cudf::experimental::binary_operator op = static_cast<cudf::experimental::binary_operator>(int_op);
+    std::unique_ptr<cudf::column> result = cudf::experimental::binary_operation(*lhs, *rhs, op, cudf::data_type(static_cast<cudf::type_id>(out_dtype)));
+    return reinterpret_cast<jlong>(result.release());
+  }
+  CATCH_STD(env, 0);
+}
+
+JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_binaryOpVS(JNIEnv *env, jclass, jlong lhs_view,
+                                                               jlong rhs_ptr, jint int_op,
+                                                               jint out_dtype) {
+  JNI_NULL_CHECK(env, lhs_view, "lhs is null", 0);
+  JNI_NULL_CHECK(env, rhs_ptr, "rhs is null", 0);
+  try {
+    auto lhs = reinterpret_cast<cudf::column_view *>(lhs_view);
+    cudf::scalar *rhs = reinterpret_cast<cudf::scalar *>(rhs_ptr);
+
+    cudf::experimental::binary_operator op = static_cast<cudf::experimental::binary_operator>(int_op);
+    std::unique_ptr<cudf::column> result = cudf::experimental::binary_operation(*lhs, *rhs, op, cudf::data_type(static_cast<cudf::type_id>(out_dtype)));
+    return reinterpret_cast<jlong>(result.release());
+  }
+  CATCH_STD(env, 0);
 }
 } // extern "C"
