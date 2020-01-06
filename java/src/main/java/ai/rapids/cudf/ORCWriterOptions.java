@@ -18,38 +18,21 @@
 
 package ai.rapids.cudf;
 
-public class ORCWriterOptions {
+public class ORCWriterOptions extends WriterOptions {
 
   public static ORCWriterOptions DEFAULT = new ORCWriterOptions(new Builder());
 
-  private final CompressionType compressionType;
-
   private ORCWriterOptions(Builder builder) {
-    compressionType = builder.compressionType;
-  }
-
-  public CompressionType getCompressionType() {
-    return compressionType;
+    super(builder);
   }
 
   public static Builder builder() {
     return new Builder();
   }
-  public static class Builder {
-    private CompressionType compressionType = CompressionType.SNAPPY;
 
-    /**
-     * Specify the compression type to use with this file
-     * @return
-     */
-    public ORCWriterOptions.Builder withCompression(CompressionType compressionType) {
-      this.compressionType = compressionType;
-      return this;
-    }
-
+  public static class Builder extends WriterBuilder<Builder> {
     public ORCWriterOptions build() {
       return new ORCWriterOptions(this);
     }
   }
-
 }

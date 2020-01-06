@@ -1732,12 +1732,7 @@ public class TableTest extends CudfTestBase {
     File tempFile = File.createTempFile("test-names", ".parquet");
     try (Table table0 = getExpectedFileTable()) {
       ParquetWriterOptions options = ParquetWriterOptions.builder()
-          .withColumnName("first")
-          .withColumnName("second")
-          .withColumnName("third")
-          .withColumnName("fourth")
-          .withColumnName("fifth")
-          .withColumnName("sixth")
+          .withColumnNames("first", "second", "third", "fourth", "fifth", "sixth")
           .withCompressionType(CompressionType.NONE)
           .withStatisticsFrequency(ParquetWriterOptions.StatisticsFrequency.NONE)
           .build();
@@ -1755,12 +1750,7 @@ public class TableTest extends CudfTestBase {
     File tempFile = File.createTempFile("test-names-metadata", ".parquet");
     try (Table table0 = getExpectedFileTable()) {
       ParquetWriterOptions options = ParquetWriterOptions.builder()
-          .withColumnName("first")
-          .withColumnName("second")
-          .withColumnName("third")
-          .withColumnName("fourth")
-          .withColumnName("fifth")
-          .withColumnName("sixth")
+          .withColumnNames("first", "second", "third", "fourth", "fifth", "sixth")
           .withMetadata("somekey", "somevalue")
           .withCompressionType(CompressionType.NONE)
           .withStatisticsFrequency(ParquetWriterOptions.StatisticsFrequency.NONE)
@@ -1805,10 +1795,29 @@ public class TableTest extends CudfTestBase {
   }
 
   @Test
+  void testORCWriteToFileWithColNames() throws IOException {
+    File tempFile = File.createTempFile("test", ".orc");
+    final String[] colNames = new String[]{"bool", "int", "byte","long","str","float","double"};
+    try (Table table0 = getExpectedFileTable()) {
+      ORCWriterOptions options = ORCWriterOptions.builder()
+          .withColumnNames(colNames)
+          .withMetadata("somekey", "somevalue")
+          .build();
+      table0.writeORC(options, tempFile.getAbsoluteFile());
+      ORCOptions opts = ORCOptions.builder().includeColumn(colNames).build();
+      try (Table table1 = Table.readORC(opts, tempFile.getAbsoluteFile())) {
+        assertTablesAreEqual(table0, table1);
+      }
+    } finally {
+      tempFile.delete();
+    }
+  }
+
+  @Test
   void testORCWriteToFileUncompressed() throws IOException {
     File tempFileUncompressed = File.createTempFile("test-uncompressed", ".orc");
     try (Table table0 = getExpectedFileTable()) {
-      table0.writeORC(ORCWriterOptions.builder().withCompression(CompressionType.NONE).build(), tempFileUncompressed.getAbsoluteFile());
+      table0.writeORC(ORCWriterOptions.builder().withCompressionType(CompressionType.NONE).build(), tempFileUncompressed.getAbsoluteFile());
       try (Table table2 = Table.readORC(tempFileUncompressed.getAbsoluteFile())) {
         assertTablesAreEqual(table0, table2);
       }
