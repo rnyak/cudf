@@ -1028,6 +1028,61 @@ public final class ColumnVector implements AutoCloseable, BinaryOperable {
   private static native long binaryOpVS(long lhs, long rhs, int op, int dtype);
 
   /**
+   * Native method for locating the starting index of the first instance of a given substring
+   * in each string in the column. 0 indexing, returns -1 if the substring is not found. Can be
+   * be configured to start or end the search mid string.
+   * @param columnView native handle of the cudf::column_view containing strings being operated on.
+   * @param substringScalar string scalar handle containing the string to locate within each row.
+   * @param start character index to start the search from (inclusive).
+   * @param end character index to end the search on (exclusive).
+   */
+  private static native long substringLocate(long columnView, long substringScalar, int start, int end);
+
+  /**
+   * Locates the starting index of the first instance of the given string in each row of a column.
+   * 0 indexing, returns -1 if the substring is not found. Overloading stringLocate to support
+   * default values for start (0) and end index.
+   * @param substring scalar containing the string to locate within each row.
+   */
+  public ColumnVector stringLocate(Scalar substring) {
+    return stringLocate(substring, 0);
+  }
+
+  /**
+   * Locates the starting index of the first instance of the given string in each row of a column.
+   * 0 indexing, returns -1 if the substring is not found. Overloading stringLocate to support
+   * default value for end index (-1, the end of each string).
+   * @param substring scalar containing the string to locate within each row.
+   * @param start character index to start the search from (inclusive).
+   */
+  public ColumnVector stringLocate(Scalar substring, int start) {
+    return stringLocate(substring, start, -1);
+  }
+
+  /**
+   * Locates the starting index of the first instance of the given string in each row of a column.
+   * 0 indexing, returns -1 if the substring is not found. Can be be configured to start or end
+   * the search mid string.
+   * @param substring scalar containing the string scalar to locate within each row.
+   * @param start character index to start the search from (inclusive).
+   * @param end character index to end the search on (exclusive).
+   */
+  public ColumnVector stringLocate(Scalar substring, int start, int end) {
+    assert type == DType.STRING : "column type must be a String";
+    assert substring != null : "target string may not be null";
+    assert substring.getType() == DType.STRING : "substring scalar must be a string scalar";
+    assert substring.isValid() == true : "substring string scalar may not contain a null value";
+    assert substring.getJavaString().isEmpty() == false : "substring string scalar may not be empty";
+    assert start >= 0 : "start index must be a positive value";
+    assert end >= start || end == -1 : "end index must be -1 or >= the start index";
+
+    try (DevicePrediction prediction = new DevicePrediction(predictSizeFor(DType.INT32), "stringLocate")) {
+      return new ColumnVector(substringLocate(getNativeView(), substring.getScalarHandle(),
+                                              start, end));
+    }
+  }
+
+  /**
    * Find if the `needle` is present in this col
    *
    * example:

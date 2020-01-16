@@ -29,6 +29,7 @@
 #include <cudf/strings/case.hpp>
 #include <cudf/strings/convert/convert_datetime.hpp>
 #include <cudf/strings/strings_column_view.hpp>
+#include <cudf/strings/find.hpp>
 #include <cudf/unary.hpp>
 
 #include "cudf/legacy/copying.hpp"
@@ -723,6 +724,21 @@ JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_binaryOpVS(JNIEnv *env,
 
     cudf::experimental::binary_operator op = static_cast<cudf::experimental::binary_operator>(int_op);
     std::unique_ptr<cudf::column> result = cudf::experimental::binary_operation(*lhs, *rhs, op, cudf::data_type(static_cast<cudf::type_id>(out_dtype)));
+    return reinterpret_cast<jlong>(result.release());
+  }
+  CATCH_STD(env, 0);
+}
+
+JNIEXPORT jlong JNICALL Java_ai_rapids_cudf_ColumnVector_substringLocate(JNIEnv *env, jclass, jlong column_view,
+                                                                      jlong substring, jint start, jint end) {
+  JNI_NULL_CHECK(env, column_view, "column is null", 0);
+  JNI_NULL_CHECK(env, substring, "target string scalar is null", 0);
+  try {
+    cudf::column_view* cv = reinterpret_cast<cudf::column_view*>(column_view);
+    cudf::strings_column_view scv(*cv);
+    cudf::string_scalar* ss_scalar = reinterpret_cast<cudf::string_scalar*>(substring);
+    
+    std::unique_ptr<cudf::column> result = cudf::strings::find(scv, *ss_scalar, start, end);
     return reinterpret_cast<jlong>(result.release());
   }
   CATCH_STD(env, 0);

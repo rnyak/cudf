@@ -993,4 +993,79 @@ public class ColumnVectorTest extends CudfTestBase {
       assertColumnsAreEqual(expected, result);
     }
   }
+
+  @Test
+  void testStringLocate() {
+    try(ColumnVector v = ColumnVector.fromStrings("Héllo", "thésé", null, "\r\ud720é\ud721", "ARé",
+                                                  "\\THE\t8\ud720", "tést strings", "", "éé");
+        ColumnVector e_locate1 = ColumnVector.fromBoxedInts(1, 2, null, 2, 2, -1, 1, -1, 0);
+        ColumnVector e_locate2 = ColumnVector.fromBoxedInts(-1, 2, null, -1, -1, -1, 1, -1, -1);
+        ColumnVector e_locate3 = ColumnVector.fromBoxedInts(-1, -1, null, 1, -1, 6, -1, -1, -1);
+        Scalar pattern1 = Scalar.fromString("é");
+        Scalar pattern2 = Scalar.fromString("és");
+        Scalar pattern3 = Scalar.fromString("\ud720");
+        ColumnVector locate1 = v.stringLocate(pattern1, 0, -1);
+        ColumnVector locate2 = v.stringLocate(pattern2, 0, -1);
+        ColumnVector locate3 = v.stringLocate(pattern3, 0, -1)) {
+      assertColumnsAreEqual(locate1, e_locate1);
+      assertColumnsAreEqual(locate2, e_locate2);
+      assertColumnsAreEqual(locate3, e_locate3);
+    }
+  }
+
+  @Test
+  void testStringLocateOffsets() {
+    try(ColumnVector v = ColumnVector.fromStrings("Héllo", "thésé", null, "\r\ud720é\ud721", "ARé",
+                                                  "\\THE\t8\ud720", "tést strings", "", "éé");
+        Scalar pattern = Scalar.fromString("é");
+        ColumnVector e_empty = ColumnVector.fromBoxedInts(-1, -1, null, -1, -1, -1, -1, -1, -1);
+        ColumnVector e_start = ColumnVector.fromBoxedInts(-1, 2, null, 2, 2, -1, -1, -1, -1);
+        ColumnVector e_end = ColumnVector.fromBoxedInts(1, -1, null, -1, -1, -1, 1, -1, 0);
+        ColumnVector locate_empty = v.stringLocate(pattern, 13, -1);
+        ColumnVector locate_start = v.stringLocate(pattern, 2, -1);
+        ColumnVector locate_end = v.stringLocate(pattern, 0, 2)) {
+      assertColumnsAreEqual(locate_empty, e_empty);
+      assertColumnsAreEqual(locate_start, e_start);
+      assertColumnsAreEqual(locate_end, e_end);
+    }
+  }
+
+  @Test
+  void testStringLocateThrowsException() {
+    assertThrows(AssertionError.class, () -> {
+      try (ColumnVector cv = ColumnVector.fromStrings("Héllo", "thésé", null, "ARé", "tést strings");
+           ColumnVector locate = cv.stringLocate(null, 0, -1)) {}
+    });
+    assertThrows(AssertionError.class, () -> {
+      try (ColumnVector cv = ColumnVector.fromStrings("Héllo", "thésé", null, "ARé", "tést strings");
+           Scalar pattern = Scalar.fromString(null);
+           ColumnVector locate = cv.stringLocate(pattern, 0, -1)) {}
+    });
+    assertThrows(AssertionError.class, () -> {
+      try (ColumnVector cv = ColumnVector.fromStrings("Héllo", "thésé", null, "ARé", "tést strings");
+           Scalar intScalar = Scalar.fromInt(1);
+           ColumnVector locate = cv.stringLocate(intScalar, 0, -1)) {}
+    });
+    assertThrows(AssertionError.class, () -> {
+      try (ColumnVector cv = ColumnVector.fromStrings("Héllo", "thésé", null, "ARé", "tést strings");
+           Scalar pattern = Scalar.fromString("");
+           ColumnVector locate = cv.stringLocate(pattern, 0, -1)) {}
+    });
+    assertThrows(AssertionError.class, () -> {
+      try (ColumnVector cv = ColumnVector.fromStrings("Héllo", "thésé", null, "ARé", "tést strings");
+           Scalar pattern = Scalar.fromString("é");
+           ColumnVector locate = cv.stringLocate(pattern, -2, -1)) {}
+    });
+    assertThrows(AssertionError.class, () -> {
+      try (ColumnVector cv = ColumnVector.fromStrings("Héllo", "thésé", null, "ARé", "tést strings");
+           Scalar pattern = Scalar.fromString("é");
+           ColumnVector locate = cv.stringLocate(pattern, 2, 1)) {}
+    });
+    assertThrows(AssertionError.class, () -> {
+      try (ColumnVector cv = ColumnVector.fromInts(1, 43, 42, 11, 2);
+           Scalar pattern = Scalar.fromString("é");
+           ColumnVector concat = cv.stringLocate(pattern, 0, -1)) {}
+    });
+
+  }
 }
