@@ -4446,7 +4446,7 @@ class DataFrame(Table):
         """
         corr = cupy.corrcoef(self.values, rowvar=False)
         df = DataFrame.from_gpu_matrix(cupy.asfortranarray(corr)).set_index(
-        self.columns
+            self.columns
         )
         df.columns = self.columns
         return df
