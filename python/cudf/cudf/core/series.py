@@ -1866,7 +1866,22 @@ class Series(Table):
         return self.product(axis=axis, skipna=skipna, dtype=dtype)
 
     def cummin(self, axis=0, skipna=True):
-        """Compute the cumulative minimum of the series"""
+        """
+        Compute the cumulative minimum of the series
+        
+        Examples
+        --------
+        >>> import cudf
+        >>> ser = cudf.Series([1, 5, 2, 4, 3])
+        >>> ser.cummin()
+        0    1
+        1    1
+        2    1
+        3    1
+        4    1
+        """
+        
+        
         assert axis in (None, 0) and skipna is True
         return Series(
             self._column._apply_scan_op("min"),
@@ -1875,7 +1890,21 @@ class Series(Table):
         )
 
     def cummax(self, axis=0, skipna=True):
-        """Compute the cumulative maximum of the series"""
+        """
+        Compute the cumulative maximum of the series
+        
+        Examples
+        --------
+        >>> import cudf
+        >>> ser = cudf.Series([1, 5, 2, 4, 3])
+        >>> ser.cummax()
+        0    1
+        1    5
+        2    5
+        3    5
+        4    5
+        """
+        
         assert axis in (None, 0) and skipna is True
         return Series(
             self._column._apply_scan_op("max"),
@@ -1884,7 +1913,21 @@ class Series(Table):
         )
 
     def cumsum(self, axis=0, skipna=True):
-        """Compute the cumulative sum of the series"""
+        """
+        Compute the cumulative sum of the series
+        
+        Examples
+        --------
+        >>> import cudf
+        >>> ser = cudf.Series([1, 5, 2, 4, 3])
+        >>> ser.cumsum()
+        0    1
+        1    6
+        2    8
+        3    12
+        4    15
+        """
+        
         assert axis in (None, 0) and skipna is True
 
         # pandas always returns int64 dtype if original dtype is int or `bool`
@@ -1904,7 +1947,21 @@ class Series(Table):
             )
 
     def cumprod(self, axis=0, skipna=True):
-        """Compute the cumulative product of the series"""
+        """
+        Compute the cumulative product of the series
+        
+        Examples
+        --------
+        >>> import cudf
+        >>> ser = cudf.Series([1, 5, 2, 4, 3])
+        >>> ser.cumprod()
+        0    1
+        1    5
+        2    10
+        3    40
+        4    120
+        """
+       
         assert axis in (None, 0) and skipna is True
 
         # pandas always returns int64 dtype if original dtype is int or `bool`
@@ -1924,14 +1981,32 @@ class Series(Table):
             )
 
     def mean(self, axis=None, skipna=True):
-        """Compute the mean of the series
         """
+        Compute the mean of the series
+        
+        Examples
+        --------
+        >>> import cudf
+        >>> ser = cudf.Series([10, 25, 3, 25, 24, 6]) 
+        >>> ser.mean()
+        15.5
+        """
+
         assert axis in (None, 0) and skipna is True
         return self._column.mean()
 
     def std(self, ddof=1, axis=None, skipna=True):
-        """Compute the standard deviation of the series
         """
+        Compute the standard deviation of the series
+        
+        Examples
+        --------
+        >>> import cudf
+        >>> ser = cudf.Series([10, 25, 3, 25, 24, 6]) 
+        >>> ser.std()
+        10.290772565750347
+        """
+        
         assert axis in (None, 0) and skipna is True
         return self._column.std(ddof=ddof)
 
@@ -2027,7 +2102,16 @@ class Series(Table):
     def cov(self, other, min_periods=None):
         """Calculates the sample covariance between two Series,
         excluding missing values.
+        
+        Examples
+        --------
+        >>> import cudf
+        >>> ser1 = cudf.Series([0.9, 0.13, 0.62])
+        >>> ser2 = cudf.Series([0.12, 0.26, 0.51])
+        >>> ser1.cov(ser2)
+        -0.015750000000000004
         """
+       
         assert min_periods in (None,)
 
         if self.empty or other.empty:
@@ -2048,7 +2132,16 @@ class Series(Table):
     def corr(self, other, method="pearson", min_periods=None):
         """Calculates the sample correlation between two Series,
         excluding missing values.
+        
+        Examples
+        --------
+        >>> import cudf
+        >>> ser1 = cudf.Series([0.9, 0.13, 0.62])
+        >>> ser2 = cudf.Series([0.12, 0.26, 0.51])
+        >>> ser1.corr(ser2)
+        -0.20454263717316112
         """
+        
         assert method in ("pearson",) and min_periods in (None,)
 
         if self.empty or other.empty:
@@ -2122,7 +2215,20 @@ class Series(Table):
     def unique(self, method="sort", sort=True):
         """Returns unique values of this Series.
         default='sort' will be changed to 'hash' when implemented.
+        
+        Examples
+        --------
+        >>> import cudf
+        >>> ser = cudf.Series([1, 2, 3, 3, 1, 6, 2, 2, 10, 3, 4, 10, 10])
+        >>> ser.unique()
+        0     1
+        1     2
+        2     3
+        3     4
+        4     6
+        5    10
         """
+        
         if method != "sort":
             msg = "non sort based unique() not implemented yet"
             raise NotImplementedError(msg)
@@ -2149,6 +2255,17 @@ class Series(Table):
 
     def value_counts(self, sort=True):
         """Returns unique values of this Series.
+        Examples
+        --------
+        >>> import cudf
+        >>> ser = cudf.Series([1, 2, 3, 3, 1, 6, 2, 2, 10, 3, 4, 10, 10])
+        >>> ser.value_counts()
+        2     3
+        3     3
+        10    3
+        1     2
+        4     1
+        6     1
         """
 
         if self.null_count == len(self):
